@@ -45,11 +45,19 @@ function defaultConfig(): Config {
 }
 
 export interface State {
+  /** 부모님 체험 중: 모든 단계가 열리고, 별·기록·복습·힌트 차감이 남지 않음 (30분 뒤 자동으로 끝남) */
+  preview: boolean;
   config: Config;
   cards: Record<string, Card>;
   records: RoundRecord[];     // 최근 것이 앞
   progress: Progress;
   pin: string;
+}
+
+const PREVIEW_KEY = P + 'preview_until';
+const PREVIEW_MS = 30 * 60 * 1000;
+function readPreview(): boolean {
+  try { return Number(sessionStorage.getItem(PREVIEW_KEY) || 0) > Date.now(); } catch { return false; }
 }
 
 function load(): State {
@@ -60,6 +68,7 @@ function load(): State {
   setVoiceURI(config.voiceURI);
   const progress = read<Progress>(K.progress, { numCheck: false, concepts: [] });
   return {
+    preview: readPreview(),
     config,
     cards: read(K.cards, {}),
     records: read<RoundRecord[]>(K.records, []),
@@ -84,6 +93,11 @@ function commit(patch: Partial<State>) {
 }
 
 export const getState = () => state;
+
+// 체험 시간이 끝나면 저절로 아이 모드로 돌아감
+if (typeof window !== 'undefined') {
+  setInterval(() => { if (state.preview && !readPreview()) { state = { ...state, preview: false }; listeners.forEach(fn => fn()); } }, 30000);
+}
 export function useStore(): State {
   return useSyncExternalStore(
     fn => { listeners.add(fn); return () => { listeners.delete(fn); }; },
@@ -104,6 +118,10 @@ export const actions = {
     commit({ config: c });
   },
   setPin(pin: string) { commit({ pin }); },
+  setPreview(on: boolean) {
+    try { if (on) sessionStorage.setItem(PREVIEW_KEY, String(Date.now() + PREVIEW_MS)); else sessionStorage.removeItem(PREVIEW_KEY); } catch { /* 무시 */ }
+    commit({ preview: on });
+  },
   setCards(cards: Record<string, Card>) { commit({ cards }); },
   setProgress(p: Partial<Progress>) { commit({ progress: { ...state.progress, ...p } }); },
   markConcept(id: string) {

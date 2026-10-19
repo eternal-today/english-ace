@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  CheckCircle2, ChevronLeft, ChevronRight, Database, Gift, Hash, History, Home, Lightbulb, Lock,
+  CheckCircle2, ChevronLeft, Eye, ChevronRight, Database, Gift, Hash, History, Home, Lightbulb, Lock,
   Plus, Settings, Smartphone, Snail, Star, Volume2, XCircle,
 } from 'lucide-react';
 import { Config, RoundRecord } from '../types';
@@ -218,6 +218,17 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                   toast(store.progress.numCheck ? '다시 잠갔어요' : '확인 없이 큰 숫자를 열었어요');
                 }}>{store.progress.numCheck ? '다시 잠그기' : '확인 없이 열기'}</button>
               </div>
+            </Card>
+
+            <Card>
+              <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                모든 단계가 열린 아이 화면으로 들어갑니다. 체험 중에 푼 문제는 별·기록·복습에 남지 않고, 힌트도 별을 쓰지 않습니다.
+                화면 위의 「체험 끝내기」를 누르거나 30분이 지나면 아이 모드로 돌아갑니다.
+              </p>
+              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => { actions.setPreview(true); onHome(); }}>
+                <Eye size={18} />체험 시작
+              </button>
             </Card>
 
             <VoiceCard draft={draft} setDraft={setDraft} />

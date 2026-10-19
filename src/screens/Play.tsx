@@ -58,8 +58,9 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   useEffect(() => { readyAt.current = Date.now() + GUARD_MS; }, [idx, rIdx, phase]);
 
   // 풀 때마다 자동 저장 (앱이 닫혀도 이어서 풀 수 있게)
+  const preview = store.preview;
   useEffect(() => {
-    if (phase !== 'solving' || !questions.length) return;
+    if (phase !== 'solving' || !questions.length || preview) return;
     saveRound({ ts: Date.now(), stage, kind, questions, items, paidUsed, combo, maxCombo });
   }, [phase, items, paidUsed]);
 
@@ -115,9 +116,10 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
       ...(!accOk && Math.floor(correct / 5) > 0 ? { lowAcc: true } : {}),
     };
     clearRound();
-    const hit = actions.addRecord(rec);
+    // 체험 중에는 기록·별·단계 열기를 남기지 않음
+    const hit = preview ? null : actions.addRecord(rec);
     // 1~100 확인을 다 맞히면 다음 단계가 열림
-    if (kind === 'check' && correct === total && total > 0 && !getState().progress.numCheck) actions.setProgress({ numCheck: true });
+    if (!preview && kind === 'check' && correct === total && total > 0 && !getState().progress.numCheck) actions.setProgress({ numCheck: true });
     setRecord(rec);
     const pct = total ? Math.round((correct / total) * 100) : 0;
     pending.current = { pct, hit };
@@ -168,7 +170,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     // 처음 맞힌 숫자는 카드를 만들지 않음 (숫자는 끝없이 많아서)
     const cards = { ...getState().cards };
     const known = ok && !hinted;
-    if (!known || cards[q.id]) { cards[q.id] = applyAnswer(cards[q.id], known, false); actions.setCards(cards); }
+    if (!preview && (!known || cards[q.id])) { cards[q.id] = applyAnswer(cards[q.id], known, false); actions.setCards(cards); }
 
     const item: RoundItem = { id: q.id, type: q.type, q: questionText(q), ans: answerText(q), val: shownAnswer(q, value), ok, hint: hinted };
     const next = [...items, item];
@@ -182,6 +184,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   /** 보기 지우기 힌트: 무료 없음, 1회 별 1개 (공통 장부) */
   const pressHint = () => {
     if (answered || hinted || inRetry) return;
+    if (preview) { applyHint(); return; }   // 체험 중에는 별을 쓰지 않음
     if (balance < HINT_COST) { toast('별이 모자라요. 천천히 들어 볼까? 🐌'); return; }
     setAskPaid(true);
   };
@@ -261,6 +264,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                 <span className="text-amber-400 font-medium"> · 5문제 맞힐 때마다 별 1개</span>
               </p>
               <p className="text-[11px] font-bold text-amber-500 mt-0.5">모든 과목에서 모은 별을 함께 써요</p>
+              {preview && <p className="text-xs font-black text-slate-500 mt-2 bg-white rounded-xl px-3 py-2">👀 부모님 체험이라 별과 기록은 남지 않았어요.</p>}
               {record.lowAcc && (
                 <p className="text-xs font-black text-rose-500 mt-2 bg-white rounded-xl px-3 py-2">
                   10문제 중 4문제보다 적게 맞혀서 이번 판은 별이 없어요. 천천히 듣고 고르면 별을 받을 수 있어! 💪

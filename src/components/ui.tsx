@@ -14,7 +14,7 @@ export const askPin: PinFn = (purpose, action) => pinImpl(purpose, action);
 
 export function fireConfetti(intensity: 'normal' | 'big' | 'epic' = 'normal') {
   const count = { normal: 80, big: 160, epic: 280 }[intensity];
-  const colors = ['#0ea79a', '#f59e0b', '#fbbf24', '#34d399', '#60a5fa', '#57dccb', '#f472b6'];
+  const colors = ['#c79325', '#f59e0b', '#fbbf24', '#34d399', '#60a5fa', '#e9c46a', '#f472b6'];
   confetti({ particleCount: count, spread: 90, origin: { y: 0.6 }, colors });
   if (intensity !== 'normal') {
     setTimeout(() => confetti({ particleCount: count / 2, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors }), 150);

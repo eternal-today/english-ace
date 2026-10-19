@@ -15,8 +15,8 @@ interface Props {
 
 /** 숫자 영어 — 단계 고르기 */
 export default function NumberMenu({ onBack, onStart, onConcept }: Props) {
-  const { progress, records } = useStore();
-  const open = (id: NumStage) => id === 'n100' || progress.numCheck;
+  const { progress, records, preview } = useStore();
+  const open = (id: NumStage) => id === 'n100' || progress.numCheck || preview;
   const lastOf = (id: NumStage) => records.find(r => r.stage === id && r.kind === 'play');
 
   return (

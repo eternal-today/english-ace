@@ -6,6 +6,7 @@ import { initCelebration } from './ace/wallet';
 import { startAceSync } from './ace/aceSync';
 import { AceRewardsSheet } from './ace/Rewards';
 import { Overlays, askPin, fireConfetti } from './components/ui';
+import { actions } from './engine/store';
 import ChildHome from './screens/ChildHome';
 import NumberMenu from './screens/NumberMenu';
 import Concept from './screens/Concept';
@@ -91,6 +92,12 @@ export default function App() {
         {screen === 'child' && (
           <motion.div key="child" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="h-[100dvh] bg-gradient-to-b from-brand-50 to-white flex flex-col overflow-hidden">
+            {store.preview && (
+              <div className="shrink-0 bg-slate-800 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm font-bold">
+                <span>👀 부모님 체험 중 · 모든 단계가 열려 있고 별과 기록이 남지 않아요</span>
+                <button className="bg-white/15 rounded-lg px-3 py-1 text-xs font-black" onClick={() => { actions.setPreview(false); setView('home'); }}>체험 끝내기</button>
+              </div>
+            )}
             {view === 'home' && <ChildHome onParent={() => askPin('', () => setScreen('parent'))} onMenu={openMenu} onResume={resumeRound} onRewards={() => setRewardsOpen(true)} />}
             {view === 'numbers' && <NumberMenu onBack={() => setView('home')} onStart={start} onConcept={st => { setStage(st); setView('concept'); }} />}
             {view === 'concept' && (
