@@ -38,14 +38,33 @@ export function onVoicesChanged(fn: () => void) {
   return () => s.removeEventListener?.('voiceschanged', fn);
 }
 
+/**
+ * 기기 음성 엔진이 놓치는 짧은 말 다듬기
+ * - 글자 하나(a, I)는 관사로 보고 건너뛰는 엔진이 있어 대문자로 따로 읽게 함 ("a, apple" → "A. apple")
+ */
+function tidy(text: string): string {
+  return text.replace(/^([a-z])\s*,\s*/i, (_, l) => `${l.toUpperCase()}. `);
+}
+
+/**
+ * 말투: 기기 음성은 감정을 넣을 수 없어서 높낮이·빠르기만 조금 바꿈.
+ * 느낌표 문장은 조금 높고 빠르게, 물음표 문장은 살짝 높게.
+ */
 function utter(text: string, rate: number) {
-  const u = new SpeechSynthesisUtterance(text);
+  const t = text.trim();
+  const u = new SpeechSynthesisUtterance(tidy(t));
   const v = pickVoice();
   if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
-  u.rate = rate;
-  u.pitch = 1;
+  const excited = /!$/.test(t), asking = /\?$/.test(t);
+  u.rate = excited ? rate * 1.05 : rate;
+  u.pitch = excited ? 1.2 : asking ? 1.1 : 1;
   return u;
 }
+
+/**
+ * 크롬(안드로이드)은 cancel() 바로 뒤의 speak()를 가끔 버림. 짧은 말(Hi!)일수록 잘 빠져서 조금 기다렸다가 말함.
+ */
+const AFTER_CANCEL_MS = 80;
 
 export function stopSpeak() {
   seq++;
@@ -57,12 +76,15 @@ export function speak(text: string, onEnd?: () => void) {
   if (!canSpeak() || !text) { onEnd?.(); return; }
   stopSpeak();
   const my = seq;
-  try {
-    const u = utter(text, 0.9);
-    u.onend = () => { if (my === seq) onEnd?.(); };
-    u.onerror = () => { if (my === seq) onEnd?.(); };
-    window.speechSynthesis.speak(u);
-  } catch { onEnd?.(); }
+  setTimeout(() => {
+    if (my !== seq) return;
+    try {
+      const u = utter(text, 0.9);
+      u.onend = () => { if (my === seq) onEnd?.(); };
+      u.onerror = () => { if (my === seq) onEnd?.(); };
+      window.speechSynthesis.speak(u);
+    } catch { onEnd?.(); }
+  }, AFTER_CANCEL_MS);
 }
 
 /**
@@ -86,7 +108,7 @@ export function speakParts(parts: string[], onPart?: (i: number) => void, gapMs 
       window.speechSynthesis.speak(u);
     } catch { onPart?.(-1); }
   };
-  next(0);
+  setTimeout(() => next(0), AFTER_CANCEL_MS);
 }
 
 /** 문장 끊어 듣기: 쉼표·물음표 등을 떼고 단어 하나씩 읽음 */

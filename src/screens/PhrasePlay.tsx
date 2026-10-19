@@ -169,25 +169,14 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     setIdx(idx + 1); resetQ();
   };
 
-  /** 맞혔을 때: 상대의 말 → 맞는 대답 하나를 이어서 들려준 뒤 1.5초 쉬고 다음 문제로 */
+  /** 맞혔을 때: 상대의 말 → 대답을 대화로 한 번 들려줌. 다음 문제로는 「다음」을 눌러야 넘어감 (뜻을 볼 시간을 주려고) */
   const advanceAfterSound = (list: RoundItem[]) => {
-    let done = false;
-    let fallback: ReturnType<typeof setTimeout> | null = null;
-    const go = () => {
-      if (done) return;
-      done = true;
-      if (fallback) clearTimeout(fallback);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      goNext(list);
-    };
-    nextRef.current = go;
-    fallback = setTimeout(go, 8000);
-    // 대화로 들려줌: 상대의 말 → 대답
+    nextRef.current = () => goNext(list);
     const it = itemById(q.itemId);
     const dialog = (q.type === 'odd' ? [q.say, q.options.find(o => !o.correct)?.text]
       : q.type === 'reply' ? [it?.say, q.play]
         : [it?.say && it.say !== q.play ? it.say : undefined, q.play]).filter((x): x is string => !!x);
-    speakParts(dialog, i => { if (i === -1 && !done) { if (fallback) clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); } }, 500);
+    speakParts(dialog, undefined, 500);
   };
 
   const answer = (key: string) => {
@@ -272,8 +261,8 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
       <div className="flex-1 flex items-center justify-center p-8"><button className="btn-primary px-10 py-4 text-lg" onClick={next}>계속</button></div>
     );
     return (
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-md text-center space-y-5">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+        <div className="w-full max-w-md text-center space-y-5 my-auto">
           <div className="text-sm font-black text-brand-600 flex items-center justify-center gap-2">
             <Sparkles size={16} />오늘 처음 만나는 표현 {introIdx + 1} / {newIds.length}
           </div>
@@ -281,6 +270,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
             <motion.div key={p.id} initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }}
               className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-brand-100 p-7 space-y-4">
               {p.scene && <SceneArt scene={p.scene} size="lg" />}
+              {p.scene?.name && <div className="text-lg font-black text-slate-700">오늘은 {p.scene.name}</div>}
               {p.scene && !p.say && <div className="text-lg font-black text-slate-700">{p.scene.ko}에는 이렇게 말해요</div>}
               {p.say && (
                 <button onClick={() => speak(p.say!)} className="w-full bg-brand-50 rounded-2xl px-4 py-3 active:scale-95">
@@ -451,6 +441,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 </div>
                 {q.type === 'odd' && q.scene && <SceneArt scene={q.scene} size="lg" />}
                 {q.type === 'odd' && q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
+                {q.type === 'odd' && q.scene?.name && <div className="text-lg font-black text-slate-700 bg-slate-50 rounded-2xl px-4 py-2">오늘은 {q.scene.name}이에요</div>}
                 {listenText && (
                   <div className="space-y-3">
                     {(q.type === 'odd' || answered) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
@@ -546,7 +537,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
           )}
 
           {answered && lastOk && (
-            <button className="btn-secondary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => nextRef.current()}>
+            <button className="btn-primary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => { if (Date.now() >= readyAt.current) nextRef.current(); }}>
               <span>다음</span><ArrowRight size={22} />
             </button>
           )}

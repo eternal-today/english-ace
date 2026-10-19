@@ -182,23 +182,10 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     if (ok) advanceAfterSound(next);
   };
 
-  /**
-   * 맞혔을 때: 정답 숫자를 한 번 읽어 준 뒤 1.5초 쉬고 다음 문제로.
-   * 소리가 끝났다는 신호를 주지 않는 기기를 위해 6초가 지나면 넘어감. 「다음」을 누르면 바로 넘어감.
-   */
+  /** 맞혔을 때: 정답 숫자를 한 번 읽어 줌. 다음 문제로는 「다음」을 눌러야 넘어감 (오늘의 한 마디와 같게) */
   const advanceAfterSound = (list: RoundItem[]) => {
-    let done = false;   // 이 문제에서 한 번만 넘어가게 (예전 문제의 타이머가 늦게 울려도 무시)
-    let fallback: ReturnType<typeof setTimeout> | null = null;
-    const go = () => {
-      if (done) return;
-      done = true;
-      if (fallback) clearTimeout(fallback);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      goNext(list);
-    };
-    nextRef.current = go;
-    fallback = setTimeout(go, 6000);
-    sayNumber(q.value, () => { if (done) return; if (fallback) clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); });
+    nextRef.current = () => goNext(list);
+    sayNumber(q.value);
   };
   /** 보기 지우기 힌트: 무료 없음, 1회 별 1개 (공통 장부) */
   const pressHint = () => {
@@ -459,7 +446,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
           )}
 
           {answered && lastOk && (
-            <button className="btn-secondary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => nextRef.current()}>
+            <button className="btn-primary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => { if (Date.now() >= readyAt.current) nextRef.current(); }}>
               <span>다음</span><ArrowRight size={22} />
             </button>
           )}
