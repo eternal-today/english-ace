@@ -34,6 +34,15 @@ export function numWords(n: number): string {
 export const fmt = (n: number) => n.toLocaleString('en-US');
 
 /** 끊어 읽기 덩어리: 읽을 말 + 표기에서 해당 글자 범위 + 이름표 */
+/**
+ * 끊어 듣기에서 -teen / -ty를 음절로 나눠 읽기 (thir · teen, thir · ty).
+ * 기기 음성이 바르게 소리 내도록 발음대로 적음 (thur, tee 등).
+ */
+const SYLLABLES: Record<number, string[]> = {
+  13: ['thur', 'teen'], 14: ['four', 'teen'], 15: ['fif', 'teen'], 16: ['six', 'teen'], 17: ['seven', 'teen'], 18: ['eight', 'teen'], 19: ['nine', 'teen'],
+  20: ['twen', 'tee'], 30: ['thur', 'tee'], 40: ['for', 'tee'], 50: ['fif', 'tee'], 60: ['six', 'tee'], 70: ['seven', 'tee'], 80: ['eigh', 'tee'], 90: ['nine', 'tee'],
+};
+
 export interface Part { text: string; range: [number, number]; label: '' | 'thousand' | 'hundred' }
 
 export function numberParts(n: number): Part[] {
@@ -56,6 +65,7 @@ export function numberParts(n: number): Part[] {
   if (n >= 100 && h > 0) parts.push({ text: ONES[h] + ' hundred', range: [len - 3, len - 2], label: 'hundred' });
   if (r > 0) {
     if (r < 10) parts.push({ text: ONES[r], range: [len - 1, len], label: '' });
+    else if (SYLLABLES[r]) SYLLABLES[r].forEach(t => parts.push({ text: t, range: [len - 2, len], label: '' }));
     else if (r < 20 || r % 10 === 0) parts.push({ text: under100(r), range: [len - 2, len], label: '' });
     else {
       // 21~99는 십의 자리와 일의 자리로 나눠 읽음 (forty · seven)

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowRight, CheckCircle2, Ear, Search, Flame, Home, Lightbulb, RotateCcw, Scissors, Sparkles, Star, Volume2, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Ear, Music, Search, Flame, Home, Lightbulb, RotateCcw, Scissors, Sparkles, Star, Volume2, XCircle } from 'lucide-react';
 import { RoundItem, RoundRecord } from '../types';
 import { Milestone, actions, getState, useStore } from '../engine/store';
 import { HINT_COST, useWallet } from '../ace/wallet';
@@ -12,6 +12,8 @@ import { speak, speakParts, speakWords, stopSpeak } from '../engine/speech';
 import { fireConfetti, tap, toast } from '../components/ui';
 import { SceneArt } from '../components/SceneArt';
 import { SavedRound, clearRound, saveRound } from '../engine/resume';
+import { planSongRound } from '../engine/songs';
+import { SONG_BY_ID, WORDS, lyricFilled } from '../data/songs';
 
 const GUARD_MS = 400;
 
@@ -22,10 +24,14 @@ interface Props {
   onOpenShop: () => void;
   resume?: SavedRound | null;
   backRef: React.MutableRefObject<null | (() => void)>;
+  /** 주제 여행 단원 (있으면 주제 여행, 없으면 오늘의 한 마디) */
+  unitId?: string;
+  /** 주제 여행: 다 풀고 축하 노래 */
+  onSong?: () => void;
 }
 
 /** 상황 설명 (기록·힌트 장부에 남기는 짧은 글) */
-const promptText = (q: { say?: string; scene?: { ko: string }; play?: string }) => q.play || q.say || q.scene?.ko || '';
+const promptText = (q: PQuestion) => q.lyric || q.play || q.say || q.scene?.ko || (q.emoji ? WORDS[q.itemId]?.word : '') || '';
 
 /** 문제 종류별 제목 (무엇을 고르는지 크게 보여 줌) */
 const TYPE_HEAD: Record<PType, { badge: string; title: string; sub: string }> = {
@@ -33,16 +39,25 @@ const TYPE_HEAD: Record<PType, { badge: string; title: string; sub: string }> = 
   scene: { badge: '언제 하는 말일까?', title: '이 말은 언제 할까요?', sub: '듣고 알맞은 상황을 골라요' },
   meaning: { badge: '무슨 뜻일까?', title: '이 말은 무슨 뜻일까요?', sub: '듣고 알맞은 뜻을 골라요' },
   reply: { badge: '어떤 말에 한 대답일까?', title: '누가 뭐라고 했을 때 한 대답일까요?', sub: '듣고 알맞은 말을 골라요' },
+  wlisten: { badge: '듣고 그림 찾기', title: '어떤 그림일까요?', sub: '' },
+  wsee: { badge: '소리 고르기', title: '이 그림을 영어로 맞게 읽은 소리는?', sub: '' },
+  lyric: { badge: '가사 빈칸', title: '빈칸에 들어갈 말은?', sub: '' },
+  sound: { badge: '누구 소리일까?', title: '이 소리는 누가 낼까요?', sub: '' },
 };
+const CIRCLE = ['①', '②', '③', '④'];
 
-export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, resume, backRef }: Props) {
+export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, resume, backRef, unitId: unitProp, onSong }: Props) {
   const store = useStore();
   const { config, preview } = store;
   const f = fillOf(config);
   const balance = useWallet().balance;
+  const unitId = unitProp || resume?.unitId;
+  const songMode = !!unitId;
+  const unit = unitId ? SONG_BY_ID[unitId] : undefined;
   const [round] = useState(() => {
     if (resume?.pquestions) return { questions: resume.pquestions, newIds: resume.newIds || [] };
     const s = getState();
+    if (unitId) return planSongRound(s.config, s.cards, unitId);
     return planPRound(s.config, s.cards, s.custom, preview ? 99 : openLevel(s.cards, fillOf(s.config)));
   });
   const { questions, newIds } = round;
@@ -79,7 +94,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
 
   useEffect(() => {
     if (phase !== 'solving' || !questions.length || preview) return;
-    saveRound({ ts: Date.now(), menu: 'phrases', stage: 'n100', kind: 'play', questions: [], pquestions: questions, newIds, items, paidUsed, combo, maxCombo });
+    saveRound({ ts: Date.now(), menu: songMode ? 'songs' : 'phrases', unitId, stage: 'n100', kind: 'play', questions: [], pquestions: questions, newIds, items, paidUsed, combo, maxCombo });
   }, [phase, items, paidUsed]);
 
   useEffect(() => {
@@ -114,7 +129,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 text-center">
         <div className="text-6xl">📭</div>
-        <p className="text-lg font-bold text-slate-600 break-keep">아직 나올 표현이 없어요. 부모님 화면에서 "한 판에 새로 나오는 것"을 1개 이상으로 해 주세요.</p>
+        <p className="text-lg font-bold text-slate-600 break-keep">아직 나올 {songMode ? '단어' : '표현'}이 없어요. 부모님 화면에서 "한 판에 새로 나오는 것"을 1개 이상으로 해 주세요.</p>
         <button className="btn-primary px-10 py-4 text-lg" onClick={onExit}>홈으로</button>
       </div>
     );
@@ -126,7 +141,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     const accOk = total === 0 || correct / total >= 0.4;
     const stars = accOk ? Math.floor(correct / 5) : 0;
     const rec: RoundRecord = {
-      ts: Date.now(), date: new Date().toLocaleDateString('ko-KR'), menu: 'phrases', kind: 'play', correct, total, stars,
+      ts: Date.now(), date: new Date().toLocaleDateString('ko-KR'), menu: songMode ? 'songs' : 'phrases', ...(unitId ? { unit: unitId } : {}), kind: 'play', correct, total, stars,
       hintsPaid: paidUsed, items: finalItems,
       ...(!accOk && Math.floor(correct / 5) > 0 ? { lowAcc: true } : {}),
     };
@@ -134,7 +149,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     const hit = preview ? null : actions.addRecord(rec);
     // 새 단계가 열렸는지 (아이에게 한 번 알려 줌)
     let newLevel = 0;
-    if (!preview) {
+    if (!preview && !songMode) {
       const s = getState();
       const lv = openLevel(s.cards, fillOf(s.config));
       if (lv > s.progress.phraseLevel) { newLevel = lv; actions.setProgress({ phraseLevel: lv }); }
@@ -172,6 +187,11 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   /** 맞혔을 때: 상대의 말 → 대답을 대화로 한 번 들려줌. 다음 문제로는 「다음」을 눌러야 넘어감 (뜻을 볼 시간을 주려고) */
   const advanceAfterSound = (list: RoundItem[]) => {
     nextRef.current = () => goNext(list);
+    if (songMode) {   // 주제 여행: 단어(가사 빈칸이면 채운 가사)를 한 번 들려줌
+      const w = WORDS[q.itemId];
+      speak(q.type === 'lyric' && q.lyric ? q.lyric.replace('___', w.word) : q.type === 'sound' ? `${w.word}! ${w.sound}, ${w.sound}!` : w.word);
+      return;
+    }
     const it = itemById(q.itemId);
     const dialog = (q.type === 'odd' ? [q.say, q.options.find(o => !o.correct)?.text]
       : q.type === 'reply' ? [it?.say, q.play]
@@ -187,25 +207,25 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     setPicked(key);
     if (inRetry) {
       if (ok) advanceAfterSound(items);
-      else if (q.type === 'odd') speak(q.options.find(o => o.correct)!.text);
+      else if (q.type === 'odd' || songMode) speak(q.options.find(o => o.correct)!.text);
       return;
     }
     // 기억 상자: 틀렸거나 힌트를 보고 맞힌 상황은 몰랐던 것으로 보고 복습에 넣음
     if (!preview) {
       const cards = { ...getState().cards };
-      const id = 'ph:' + q.itemId;
+      const id = q.cardId || 'ph:' + q.itemId;
       cards[id] = applyAnswer(cards[id], ok && !hinted, false);
       actions.setCards(cards);
     }
     const rightText = q.options.find(o => o.correct)!.text;
-    const item: RoundItem = { id: 'ph:' + q.itemId, type: 'odd', q: `${TYPE_HEAD[q.type].badge} · ${promptText(q)}`, ans: rightText, val: q.options.find(o => o.key === key)?.text || '', ok, hint: hinted };
+    const item: RoundItem = { id: q.cardId || 'ph:' + q.itemId, type: 'odd', q: `${TYPE_HEAD[q.type].badge} · ${promptText(q)}`, ans: rightText, val: q.options.find(o => o.key === key)?.text || '', ok, hint: hinted };
     const next = [...items, item];
     setItems(next);
     const nc = ok ? combo + 1 : 0;
     setCombo(nc);
     if (nc > maxCombo) setMaxCombo(nc);
     if (ok) advanceAfterSound(next);
-    else if (q.type === 'odd') speak(rightText);
+    else if (q.type === 'odd' || songMode) speak(rightText);
     else if (q.play) speak(q.play);
   };
 
@@ -253,6 +273,50 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   );
 
   // ════════ 새 표현 소개 ════════
+  if (phase === 'intro' && songMode) {
+    const w = WORDS[newIds[introIdx]];
+    const last = introIdx + 1 >= newIds.length;
+    const next = () => { stopSpeak(); last ? setPhase('solving') : setIntroIdx(introIdx + 1); };
+    const lines = (unit?.lyrics || []).filter(l => l.answer === w?.id);
+    if (!w) return (
+      <div className="flex-1 flex items-center justify-center p-8"><button className="btn-primary px-10 py-4 text-lg" onClick={next}>계속</button></div>
+    );
+    return (
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+        <div className="w-full max-w-md text-center space-y-5 my-auto">
+          <div className="text-sm font-black text-brand-600 flex items-center justify-center gap-2">
+            <Sparkles size={16} />오늘 처음 만나는 단어 {introIdx + 1} / {newIds.length}
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={w.id} initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-brand-100 p-7 space-y-4">
+              <div className="text-[clamp(5rem,20vmin,8rem)] leading-none">{w.emoji}</div>
+              <button onClick={() => speak(w.word)} className="inline-flex items-center gap-2 bg-brand-50 text-brand-800 px-6 py-3 rounded-2xl active:scale-95">
+                <Volume2 size={24} /><span className="en text-4xl"><span className="text-rose-500">{w.word[0]}</span>{w.word.slice(1)}</span>
+              </button>
+              <div className="text-sm font-bold text-slate-500">{w.ko}</div>
+              {w.sound && unit?.id === 'oldmac' && (
+                <button onClick={() => speak(`${w.sound}, ${w.sound}!`)} className="btn-secondary px-4 py-2 text-sm inline-flex items-center gap-1.5"><Volume2 size={14} />{w.word}의 소리: <span className="en">{w.sound} {w.sound}</span></button>
+              )}
+              {lines.length > 0 && (
+                <div className="bg-slate-50 rounded-2xl p-3 space-y-1">
+                  <div className="text-[11px] font-black text-slate-400">노래에서는 이렇게 나와요</div>
+                  {lines.slice(0, 1).map((l, i) => (
+                    <button key={i} onClick={() => speak(lyricFilled(l))} className="en text-lg text-slate-700 flex items-center gap-2 mx-auto"><Volume2 size={16} className="text-brand-500 shrink-0" />{lyricFilled(l)}</button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+          <button className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2" onClick={next}>
+            {last ? '문제 풀러 가기' : '다음 단어'}<ArrowRight size={22} />
+          </button>
+          <button className="text-sm font-bold text-slate-400" onClick={onExit}>홈으로</button>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'intro') {
     const p = itemById(newIds[introIdx]);
     const last = introIdx + 1 >= newIds.length;
@@ -381,6 +445,11 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
               <button className="btn-secondary flex-1 py-5 text-lg flex items-center justify-center gap-2" onClick={onExit}>
                 <Home size={20} /><span>홈으로</span>
               </button>
+              {onSong && (
+                <button className="btn-secondary flex-1 py-5 text-lg flex items-center justify-center gap-2" onClick={onSong}>
+                  <Music size={20} /><span>노래 듣기</span>
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -395,6 +464,8 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   const rightOpt = q.options.find(o => o.correct)!;
   const head = TYPE_HEAD[q.type];
   const listenText = q.type === 'odd' ? q.say : q.play;   // 이 문제에서 듣는 말
+  const songWord = songMode ? WORDS[q.itemId] : undefined;
+  const pictureOpts = q.options.some(o => o.emoji) && q.type !== 'wsee';
   const pickedOpt = q.options.find(o => o.key === picked);
   const koText = (t: string) => koFilled(t, f);
 
@@ -428,9 +499,9 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
           <div className="w-full h-full bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center justify-center px-5 py-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-500/10" />
             <div className="absolute top-4 left-5 right-5 flex items-center justify-between text-xs font-black">
-              <span className={inRetry ? 'text-rose-500' : 'text-slate-400'}>{inRetry ? '틀린 문제 다시 풀기 · 별과 상관없는 연습이에요' : '오늘의 한 마디'}</span>
-              {q.isNew && !inRetry && <span className="bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full">새 표현</span>}
-              {q.isReview && !q.isNew && !inRetry && <span className="bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full">다시 만난 표현</span>}
+              <span className={inRetry ? 'text-rose-500' : 'text-slate-400'}>{inRetry ? '틀린 문제 다시 풀기 · 별과 상관없는 연습이에요' : unit ? `주제 여행 · ${unit.title}` : '오늘의 한 마디'}</span>
+              {q.isNew && !inRetry && <span className="bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full">{songMode ? '새 단어' : '새 표현'}</span>}
+              {q.isReview && !q.isNew && !inRetry && <span className="bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full">{songMode ? '다시 만난 단어' : '다시 만난 표현'}</span>}
             </div>
             <AnimatePresence mode="wait">
               <motion.div key={inRetry ? `r${rIdx}` : idx} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
@@ -442,18 +513,28 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 {q.type === 'odd' && q.scene && <SceneArt scene={q.scene} size="lg" />}
                 {q.type === 'odd' && q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
                 {q.type === 'odd' && q.scene?.name && <div className="text-lg font-black text-slate-700 bg-slate-50 rounded-2xl px-4 py-2">오늘은 {q.scene.name}이에요</div>}
+                {q.type === 'wsee' && q.emoji && <div className="text-[clamp(5rem,22vmin,9rem)] leading-none">{q.emoji}</div>}
+                {q.type === 'lyric' && q.lyric && (
+                  <div className="en text-[clamp(1.4rem,5.5vmin,2.2rem)] text-slate-800 leading-snug max-w-lg">
+                    {q.lyric.split('___').map((part, i, arr) => (
+                      <React.Fragment key={i}>{part}{i < arr.length - 1 && (
+                        <span className={`inline-block min-w-[3.5em] mx-1 px-2 rounded-xl border-b-4 ${answered ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-brand-300 bg-brand-50 text-brand-300'}`}>{answered ? songWord?.word : '?'}</span>
+                      )}</React.Fragment>
+                    ))}
+                  </div>
+                )}
                 {listenText && (
                   <div className="space-y-3">
-                    {(q.type === 'odd' || answered) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
+                    {q.type === 'lyric' ? null : (q.type === 'odd' || (answered && !songMode)) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
                     <div className="flex items-center justify-center gap-3">
                       <button onClick={() => speak(listenText)} aria-label="다시 듣기"
                         className="h-14 px-6 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center gap-2 font-black shadow-lg shadow-brand-200 active:scale-95">
                         <Volume2 size={24} />다시 듣기
                       </button>
-                      <button onClick={() => speakWords(listenText, setWord)} aria-label="끊어 듣기"
+                      {/\s/.test(listenText.trim()) && <button onClick={() => speakWords(listenText, setWord)} aria-label="끊어 듣기"
                         className="h-14 px-5 rounded-full bg-white border-2 border-brand-200 text-brand-600 flex items-center gap-2 font-black active:scale-95">
                         <Scissors size={20} />끊어 듣기
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 )}
@@ -461,7 +542,15 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 {answered && (
                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                     className={`px-5 py-3 rounded-2xl font-black max-w-md ${lastOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                    {q.type === 'odd' ? (
+                    {songWord ? (
+                      <>
+                        <div className="text-sm">{lastOk ? (combo >= 3 && !inRetry ? `${combo}연속! 대단해! ⚡` : '정답이야! 🌟') : '아까비! 정답을 같이 볼까? 💪'}</div>
+                        <div className="mt-1 text-sm font-bold text-slate-600 break-keep flex items-center justify-center gap-2">
+                          <span className="text-2xl">{songWord.emoji}</span><span className="en text-xl text-slate-800"><span className="text-rose-500">{songWord.word[0]}</span>{songWord.word.slice(1)}</span> = {songWord.ko}
+                          {q.type === 'sound' && songWord.sound && <span className="en text-base text-slate-500">({songWord.sound} {songWord.sound})</span>}
+                        </div>
+                      </>
+                    ) : q.type === 'odd' ? (
                       <>
                         <div className="text-sm">{lastOk ? (combo >= 3 && !inRetry ? `${combo}연속! 엉뚱한 대답 찾기 선수야! ⚡` : '엉뚱한 대답을 찾았어! 😆') : `'${pickedOpt?.text}'도 어울리는 대답이에요!`}</div>
                         <div className="mt-1 text-sm font-bold text-slate-600 break-keep">
@@ -486,8 +575,8 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
         </div>
 
         <div className="shrink-0 px-4 pb-4 pt-1 space-y-2 landscape:w-[44%] landscape:max-w-lg landscape:pl-2 landscape:pt-2 landscape:flex landscape:flex-col landscape:justify-center">
-          <div className={`grid gap-2.5 ${q.type === 'scene' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {q.options.map(o => {
+          <div className={`grid gap-2.5 ${pictureOpts ? (q.options.length === 3 ? 'grid-cols-3' : 'grid-cols-2') : q.type === 'scene' || (q.type === 'wsee' && q.options.length === 4) ? 'grid-cols-2' : q.type === 'wsee' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+            {q.options.map((o, oi) => {
               const isAns = o.correct;
               const isPicked = o.key === picked;
               const gone = removed.includes(o.key) && !answered;
@@ -498,14 +587,22 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                   : o.key === sel ? 'bg-brand-100 border-brand-500 text-brand-900 shadow-md ring-2 ring-brand-200'
                     : 'bg-white border-slate-200 text-slate-800 shadow-sm active:bg-brand-50 active:border-brand-300';
               return (
-                <button key={o.key} disabled={gone} {...tap(() => (answered ? (o.speak && speak(o.speak)) : choose(o.key)))}
-                  className={`relative rounded-3xl border-2 transition-colors select-none flex items-center gap-3 px-4 py-3.5 text-left ${q.type === 'scene' ? 'flex-col justify-center text-center py-4' : ''} ${tone}`}>
+                <button key={o.key} disabled={gone} {...tap(() => (answered ? speak(o.speak || (songMode ? o.text : '')) : choose(o.key)))}
+                  className={`relative rounded-3xl border-2 transition-colors select-none flex items-center gap-3 px-4 py-3.5 text-left ${q.type === 'scene' || pictureOpts || q.type === 'wsee' ? 'flex-col justify-center text-center py-4' : ''} ${tone}`}>
                   {o.scene && <SceneArt scene={o.scene} size="sm" dim={gone} />}
-                  {o.speak && <Volume2 size={20} className="shrink-0 opacity-60" />}
-                  <span className="min-w-0">
-                    <span className={`${o.speak ? 'en text-[clamp(1.2rem,4.5vmin,1.6rem)]' : 'text-[clamp(1rem,3.8vmin,1.25rem)] font-black'} block`}>{o.text}</span>
-                    {answered && o.speak && <span className="text-xs font-bold text-slate-500">{koText(o.text)}</span>}
-                  </span>
+                  {pictureOpts && o.emoji && <span className={`text-[clamp(2.75rem,10vmin,4rem)] leading-none ${gone ? 'opacity-20' : ''}`}>{o.emoji}</span>}
+                  {o.speak && q.hideText && !answered
+                    ? <span className="flex items-center gap-2 text-[clamp(1.25rem,5vmin,1.75rem)] font-black"><Volume2 size={24} />{CIRCLE[oi]}</span>
+                    : <>
+                      {o.speak && <Volume2 size={20} className="shrink-0 opacity-60" />}
+                      {!(q.hideText && !answered) && (
+                        <span className="min-w-0">
+                          <span className={`${o.speak || songMode ? 'en text-[clamp(1.2rem,4.5vmin,1.6rem)]' : 'text-[clamp(1rem,3.8vmin,1.25rem)] font-black'} block`}>{o.text}</span>
+                          {answered && o.speak && !songMode && <span className="text-xs font-bold text-slate-500">{koText(o.text)}</span>}
+                          {answered && songMode && <span className="text-xs font-bold text-slate-500">{WORDS[o.key === 'ok' ? q.itemId : o.key.slice(1)]?.ko}</span>}
+                        </span>
+                      )}
+                    </>}
                   {q.type === 'odd' && answered && isAns && <span className="ml-auto shrink-0 text-[11px] font-black bg-emerald-500 text-white px-2 py-1 rounded-full">엉뚱해요</span>}
                   {q.type === 'odd' && answered && !isAns && <CheckCircle2 size={18} className="ml-auto shrink-0 text-emerald-400" />}
                   {q.type !== 'odd' && answered && isAns && <CheckCircle2 size={20} className="absolute top-2 right-2 text-emerald-500" />}
@@ -514,7 +611,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
               );
             })}
           </div>
-          {!answered && q.type !== 'scene' && q.type !== 'meaning' && <p className="text-center text-[11px] font-bold text-slate-400">보기를 누르면 소리가 나와요. 다 들어 보고 골라요</p>}
+          {!answered && q.options.some(o => o.speak) && <p className="text-center text-[11px] font-bold text-slate-400">보기를 누르면 소리가 나와요. 다 들어 보고 골라요</p>}
           {answered && q.type === 'odd' && <p className="text-center text-[11px] font-bold text-slate-400">✅ 표시는 모두 어울리는 대답이에요. 눌러서 다시 들어 봐요</p>}
 
           {!answered && (

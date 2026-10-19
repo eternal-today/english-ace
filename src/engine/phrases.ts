@@ -14,7 +14,7 @@ import { shuffle } from './numbers';
  * meaning 무슨 뜻일까: 표현을 듣고 한국어 뜻 고르기
  * reply   어떤 말에 한 대답일까: 대답을 듣고 상대가 한 말 고르기
  */
-export type PType = 'odd' | 'scene' | 'meaning' | 'reply';
+export type PType = 'odd' | 'scene' | 'meaning' | 'reply' | 'wlisten' | 'wsee' | 'lyric' | 'sound';   // 뒤의 넷은 주제 여행 (engine/songs.ts)
 
 export interface POption {
   key: string;
@@ -22,6 +22,7 @@ export interface POption {
   correct: boolean;             // 이 문제의 정답 (odd에서는 엉뚱한 대답)
   speak?: string;               // 누르면 들려줄 영어 (영어 보기만)
   scene?: { emoji: string; icon?: string };   // 상황 보기의 그림
+  emoji?: string;               // 주제 여행: 단어 그림
 }
 export interface PQuestion {
   type: PType;
@@ -33,6 +34,11 @@ export interface PQuestion {
   answer: string;           // 정답 key
   isNew?: boolean;
   isReview?: boolean;
+  cardId?: string;          // 기억 상자 카드 번호 (없으면 ph:itemId)
+  unitId?: string;          // 주제 여행 단원
+  emoji?: string;           // wsee: 보여 줄 그림
+  lyric?: string;           // lyric: 빈칸이 있는 가사
+  hideText?: boolean;       // 답하기 전에는 보기의 글을 숨김 (듣기 문제)
 }
 
 /** {name} {age}를 채운 상황. 채울 수 없는 대답은 빼고, 대답이 하나도 안 남으면 null */

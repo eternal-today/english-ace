@@ -15,6 +15,9 @@ import { sayNumberSlow } from '../components/NumberView';
 import { MessageCircle, Stamp, Trash2 } from 'lucide-react';
 import { PhraseItem } from '../data/phrases';
 import { allItems, fillOf, levelProgress, resolve } from '../engine/phrases';
+import { SONGS, SONG_BY_ID } from '../data/songs';
+import { SongPlayer, youtubeId } from '../components/SongPlayer';
+import { Music } from 'lucide-react';
 
 const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
   <section className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${dim ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>{children}</section>
@@ -75,6 +78,39 @@ function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =
         </div>
       </div>
       <p className="text-[11px] text-slate-400 leading-relaxed">소리는 기기의 음성 엔진이 냅니다. 기기마다 목소리가 다를 수 있어 아이 태블릿에서 한 번 들어 보세요.</p>
+    </Card>
+  );
+}
+
+/** 주제 여행 노래 주소 (저장 버튼으로 저장) */
+function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<Record<string, boolean>>({});
+  return (
+    <Card>
+      <Title icon={<Music size={18} className="text-trust-600" />}>주제 여행 노래</Title>
+      <p className="text-sm text-slate-500 leading-relaxed">
+        단원마다 유튜브 주소를 넣어 주세요. 앱 안에서 재생하고 노래가 끝나면 저절로 닫혀서, 추천 영상으로 빠지지 않습니다.
+        저작권이 끝난 오래된 동요라도 영상은 만든 채널의 것이라 앱에 담지 않고 주소로만 연결합니다.
+      </p>
+      {SONGS.map(u => {
+        const url = draft.songs?.[u.id] || '';
+        const ok = !!youtubeId(url);
+        return (
+          <div key={u.id} className="space-y-2">
+            <Label>{u.title} {u.known ? '(아는 노래)' : '(새 노래)'}</Label>
+            <div className="flex gap-2">
+              <input className="input-field bg-slate-50 flex-1" placeholder="https://youtu.be/…" value={url}
+                onChange={e => { setDraft({ ...draft, songs: { ...(draft.songs || {}), [u.id]: e.target.value.trim() } }); setBlocked(b => ({ ...b, [u.id]: false })); }} />
+              <button className="btn-secondary px-4 shrink-0" disabled={!ok} onClick={() => setPreview(u.id)}>미리 재생</button>
+            </div>
+            {url && !ok && <p className="text-[11px] font-bold text-rose-500">유튜브 주소가 아닌 것 같아요.</p>}
+            {blocked[u.id] && <p className="text-[11px] font-bold text-amber-600">이 영상은 앱 안 재생이 막혀 있어요. 아이 화면에서는 "새 창으로 열기"로 열립니다. 다른 영상을 고르는 것을 권해요.</p>}
+          </div>
+        );
+      })}
+      <SongPlayer open={!!preview} url={preview ? draft.songs?.[preview] || '' : ''} title={preview ? SONG_BY_ID[preview].title : ''}
+        onClose={() => setPreview(null)} onBlocked={b => preview && setBlocked(x => ({ ...x, [preview]: b }))} />
     </Card>
   );
 }
@@ -181,9 +217,9 @@ export default function Parent({ onHome }: { onHome: () => void }) {
   const wallet = useWallet();
   const coupons = [...aceCoupons().filter(c => couponState(c) === 'active'), ...mathWishCoupons()];
   const today = dayIndex();
-  const reviewCards = Object.entries(store.cards).filter(([id, c]) => c.box < 5 && !id.startsWith('ph:'));
+  const reviewCards = Object.entries(store.cards).filter(([id, c]) => c.box < 5 && /^n/.test(id));
   const dueNow = reviewCards.filter(([, c]) => c.due <= today).length;
-  const weak = Object.entries(store.cards).filter(([id, v]) => v.wrong > 0 && !id.startsWith('ph:')).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
+  const weak = Object.entries(store.cards).filter(([id, v]) => v.wrong > 0 && /^n/.test(id)).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
 
   const exportBackup = () => {
     const data: Record<string, string> = {};
@@ -218,7 +254,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
     reader.readAsText(file);
   };
 
-  const stageName = (r: RoundRecord) => (r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
+  const stageName = (r: RoundRecord) => (r.menu === 'songs' ? `주제 여행 · ${r.unit ? SONG_BY_ID[r.unit]?.title : ''}` : r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24">
@@ -308,6 +344,8 @@ export default function Parent({ onHome }: { onHome: () => void }) {
             </Card>
 
             <PhraseCard />
+
+            <SongCard draft={draft} setDraft={setDraft} />
 
             <Card>
               <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>

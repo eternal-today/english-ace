@@ -6,7 +6,8 @@ import type { PQuestion } from './phrases';
 
 export interface SavedRound {
   ts: number;
-  menu?: 'numbers' | 'phrases';   // 없으면 숫자 영어 (예전 저장)
+  menu?: 'numbers' | 'phrases' | 'songs';   // 없으면 숫자 영어 (예전 저장)
+  unitId?: string;                 // 주제 여행 단원
   stage: NumStage;
   kind: RoundKind;
   questions: Question[];
@@ -32,9 +33,9 @@ export function loadRound(): SavedRound | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const r = JSON.parse(raw) as SavedRound;
-    const qs = r && r.menu === 'phrases' ? r.pquestions : r?.questions;
+    const qs = r && r.menu && r.menu !== 'numbers' ? r.pquestions : r?.questions;
     const ok = r && Array.isArray(qs) && qs.length > 0 && Array.isArray(r.items)
-      && r.items.length <= (r.menu === 'phrases' ? (r.pquestions || []).length : r.questions.length) && Date.now() - r.ts < KEEP_MS;
+      && r.items.length <= (r.menu && r.menu !== 'numbers' ? (r.pquestions || []).length : r.questions.length) && Date.now() - r.ts < KEEP_MS;
     if (!ok) { clearRound(); return null; }
     return r;
   } catch { clearRound(); return null; }

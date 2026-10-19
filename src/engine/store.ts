@@ -41,7 +41,7 @@ function defaultConfig(): Config {
   return {
     count: 10, difficulty: 1, newPerRound: 3,
     modes: { listen: true, say: true, place: true },
-    childName: name, childNameEn: '', childAge: 0, voiceURI: '',
+    childName: name, childNameEn: '', childAge: 0, voiceURI: '', songs: {},
   };
 }
 
@@ -66,7 +66,7 @@ function readPreview(): boolean {
 function load(): State {
   const def = defaultConfig();
   const saved = read<Partial<Config>>(K.config, {});
-  const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) } };
+  const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) }, songs: { ...(saved.songs || {}) } };
   config.count = Math.min(MAX_COUNT, Math.max(MIN_COUNT, config.count || 10));
   setVoiceURI(config.voiceURI);
   const progress = read<Progress>(K.progress, { numCheck: false, concepts: [], phraseLevel: 1 });

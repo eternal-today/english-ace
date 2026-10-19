@@ -33,8 +33,9 @@ export interface RoundItem {
 export interface RoundRecord {
   ts: number;
   date: string;
-  menu: 'numbers' | 'phrases';
+  menu: 'numbers' | 'phrases' | 'songs';
   stage?: NumStage;           // 숫자 영어만
+  unit?: string;              // 주제 여행 단원
   kind: RoundKind;
   correct: number;
   total: number;
@@ -62,6 +63,7 @@ export interface Config {
   childNameEn: string;    // 영어로 쓴 이름 (예: Jimin). "What's your name?"에 씀
   childAge: number;       // 오늘의 한 마디 "How old are you?"에 씀 (0이면 그 문제는 안 나옴)
   voiceURI: string;       // 고른 영어 목소리 (비우면 미국 영어 자동)
+  songs: Record<string, string>;   // 주제 여행 단원별 유튜브 주소 (부모님이 넣음)
 }
 
 export interface Progress {
