@@ -589,7 +589,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 {q.type === 'odd' && q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
                 {q.type === 'odd' && q.scene?.name && <div className="text-lg font-black text-slate-700 bg-slate-50 rounded-2xl px-4 py-2">오늘은 {q.scene.name}이에요</div>}
                 {phQ && q.letter && <div className="en text-[clamp(5.5rem,24vmin,10rem)] leading-none text-slate-800">{q.letter}</div>}
-                {q.type === 'wsee' && q.emoji && <div className="text-[clamp(5rem,22vmin,9rem)] leading-none">{q.emoji}</div>}
+                {(q.type === 'wsee' || q.type === 'pfirst') && q.emoji && <div className="text-[clamp(5rem,22vmin,9rem)] leading-none">{q.emoji}</div>}
                 {q.type === 'lyric' && q.lyric && (
                   <div className="en text-[clamp(1.4rem,5.5vmin,2.2rem)] text-slate-800 leading-snug max-w-lg">
                     {q.lyric.split('___').map((part, i, arr) => (
@@ -601,7 +601,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 )}
                 {listenText && (
                   <div className="space-y-3">
-                    {q.type === 'lyric' || (phQ && (q.letter || answered)) ? null : (q.type === 'odd' || (answered && !songMode)) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
+                    {q.type === 'lyric' || (phQ && (q.letter || q.emoji || answered)) ? null : (q.type === 'odd' || (answered && !songMode)) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
                     <div className="flex items-center justify-center gap-3">
                       <button onClick={() => speak(listenText)} aria-label="다시 듣기"
                         className="h-14 px-6 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center gap-2 font-black shadow-lg shadow-brand-200 active:scale-95">

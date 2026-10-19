@@ -64,7 +64,7 @@ export function makePhonicsQuestion(id: string, type: PType, difficulty: number,
   if (type === 'pfirst') {
     const w = pick(l.words);
     const opts = [letterOpt(l, true), ...otherLetters(id, pool, n).map(o => letterOpt(LETTER_BY_ID[o], false))];
-    return { ...base, type, play: w.word, options: shuffle(opts), answer: 'ok', fb: { ...w, letter: id } };
+    return { ...base, type, play: w.word, emoji: w.emoji, options: shuffle(opts), answer: 'ok', fb: { ...w, letter: id } };
   }
   if (type === 'pmatch') {
     const w = pick(l.words);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, ChevronRight, MessageCircle, Music, PenLine, PlayCircle, Search, Sparkles, Star, Volume2 } from 'lucide-react';
+import { BookOpen, ChevronRight, MessageCircle, Music, PlayCircle, Search, Sparkles, Star, Volume2 } from 'lucide-react';
 import { MenuId } from '../types';
 import { BADGES, useStore } from '../engine/store';
 import { useWallet } from '../ace/wallet';
@@ -23,7 +23,6 @@ const MENUS: { id: MenuId; label: string; sub: string; icon: React.ReactNode; re
   { id: 'phrases', label: '오늘의 한 마디', sub: '엉뚱한 대답 찾기', icon: <MessageCircle size={28} />, ready: true },
   { id: 'songs', label: '주제 여행', sub: '노래 속 단어 찾기', icon: <Music size={28} />, ready: true },
   { id: 'phonics', label: '소리 탐정', sub: '첫소리 찾기', icon: <Search size={28} />, ready: true },
-  { id: 'alphabet', label: '알파벳 따라 쓰기', sub: '나중에 열려요', icon: <PenLine size={28} />, ready: false },
 ];
 
 export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDogam }: Props) {
@@ -90,7 +89,7 @@ export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDog
           <div className="grid grid-cols-2 gap-3">
             {MENUS.map((m, i) => (
               <motion.button key={m.id} whileTap={{ scale: m.ready ? 0.95 : 1 }} disabled={!m.ready} onClick={() => onMenu(m.id)}
-                className={`rounded-3xl p-5 flex flex-col items-start gap-3 text-left ${i === 0 ? 'col-span-2 bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-xl shadow-brand-200' : 'bg-white border-2 border-slate-200 text-brand-600 disabled:opacity-50'}`}>
+                className={`rounded-3xl p-5 flex flex-col items-start gap-3 text-left ${i === MENUS.length - 1 && MENUS.length % 2 === 0 ? 'col-span-2 ' : ''}${i === 0 ? 'col-span-2 bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-xl shadow-brand-200' : 'bg-white border-2 border-slate-200 text-brand-600 disabled:opacity-50'}`}>
                 <div className={`h-12 min-w-12 px-2 rounded-2xl flex items-center justify-center ${i === 0 ? 'bg-white/25' : 'bg-brand-50'}`}>{m.icon}</div>
                 <div>
                   <div className={`font-black ${i === 0 ? 'text-2xl' : 'text-base text-slate-700'}`}>{m.label}</div>

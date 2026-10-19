@@ -19,6 +19,7 @@ import { SONGS, SONG_BY_ID } from '../data/songs';
 import { SongPlayer, youtubeId } from '../components/SongPlayer';
 import { Music } from 'lucide-react';
 import { clearRound, loadRound } from '../engine/resume';
+import { AceSaveBar, confirmLeave } from '../ace/SaveBar';
 import { groupProgress, openGroups } from '../engine/phonics';
 
 const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
@@ -325,7 +326,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
     <div className="min-h-[100dvh] bg-slate-50 pb-24">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={onHome} aria-label="아이 홈" className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Home size={20} className="text-slate-600" /></button>
+          <button onClick={() => { if (confirmLeave()) onHome(); }} aria-label="아이 홈" className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Home size={20} className="text-slate-600" /></button>
           <h2 className="font-bold text-slate-900">부모님 설정</h2>
         </div>
         <div className="bg-trust-100 text-trust-700 text-[10px] font-black px-2 py-1 rounded-md tracking-wider">ADMIN</div>
@@ -419,7 +420,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                 모든 단계가 열린 아이 화면으로 들어갑니다. 체험 중에 푼 문제는 별·기록·복습에 남지 않고, 힌트도 별을 쓰지 않습니다.
                 화면 위의 「체험 끝내기」를 누르거나 30분이 지나면 아이 모드로 돌아갑니다.
               </p>
-              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => { actions.setPreview(true); onHome(); }}>
+              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => { if (!confirmLeave()) return; actions.setPreview(true); onHome(); }}>
                 <Eye size={18} />체험 시작
               </button>
             </Card>
@@ -455,11 +456,6 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               {draft.childNameEn && <button className="btn-secondary px-4 py-2 text-sm flex items-center gap-1.5" onClick={() => speak(`My name is ${draft.childNameEn}.`)}><Volume2 size={14} />My name is {draft.childNameEn}.</button>}
             </Card>
 
-            <div>
-              <button className={`btn-primary w-full py-4 text-lg bg-trust-600 hover:bg-trust-700 shadow-trust-100 ${dirty ? '' : 'opacity-60'}`} onClick={save}>
-                {dirty ? '바뀐 설정 저장하기' : '모든 설정 저장하기'}
-              </button>
-            </div>
 
             <div className="pt-10 border-t-2 border-dashed border-slate-200 space-y-6">
               <div className="flex items-center justify-center gap-2">
@@ -624,6 +620,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
           </div>
         )}
       </main>
+      <AceSaveBar dirty={dirty} onSave={save} onRevert={() => setDraft(store.config)} />
     </div>
   );
 }

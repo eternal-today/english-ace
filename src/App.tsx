@@ -21,6 +21,7 @@ import { SONG_BY_ID } from './data/songs';
 import { CONCEPT_BY_STAGE } from './engine/concepts';
 import { SavedRound, loadRound } from './engine/resume';
 import { stopSpeak } from './engine/speech';
+import { confirmLeave } from './ace/SaveBar';
 
 type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay'
   | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam';
@@ -63,6 +64,7 @@ export default function App() {
         history.pushState({ english: 1 }, ''); guard.current = true; stopSpeak();
         setView(cur.view === 'concept' ? 'numbers' : cur.view === 'songUnit' ? 'songs' : cur.view === 'phonicsConcept' || cur.view === 'soundDogam' ? 'phonics' : 'phrases'); return;
       }
+      if (cur.screen === 'parent' && !confirmLeave()) { history.pushState({ english: 1 }, ''); guard.current = true; return; }
       stopSpeak();
       setScreen('child'); setView('home');
     };

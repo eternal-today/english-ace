@@ -176,8 +176,8 @@ export function PhonicsConcept({ groupNo, onBack, onPlay }: { groupNo: number; o
             const ans = answers[i];
             return (
               <div key={i} className="space-y-2">
-                <button onClick={() => speak(q.play!)} className="flex items-center gap-2 text-sm font-black text-brand-700 bg-brand-50 rounded-xl px-3 py-2 active:scale-95">
-                  <Ear size={16} />{i + 1}번 듣기 · 어떤 글자로 시작할까?
+                <button onClick={() => speak(q.play!)} className="flex items-center gap-3 text-sm font-black text-brand-700 bg-brand-50 rounded-xl px-3 py-2 active:scale-95">
+                  <span className="text-4xl leading-none">{q.emoji}</span><Ear size={16} />{i + 1}번 듣기 · 어떤 글자로 시작할까?
                 </button>
                 <div className={`grid gap-2 ${q.options.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
                   {q.options.map(o => {
