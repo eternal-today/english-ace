@@ -55,7 +55,6 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); stopSpeak(); }, []);
   const readyAt = useRef(0);
-  const advanced = useRef(false);                       // 맞힌 뒤 다음 문제로 넘어갔는지
   const nextRef = useRef<() => void>(() => { });        // 「다음」 버튼이 부르는 동작
   useEffect(() => { readyAt.current = Date.now() + GUARD_MS; }, [idx, rIdx, phase]);
 
@@ -188,11 +187,18 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
    * 소리가 끝났다는 신호를 주지 않는 기기를 위해 6초가 지나면 넘어감. 「다음」을 누르면 바로 넘어감.
    */
   const advanceAfterSound = (list: RoundItem[]) => {
-    advanced.current = false;
-    const go = () => { if (advanced.current) return; advanced.current = true; if (timerRef.current) clearTimeout(timerRef.current); goNext(list); };
+    let done = false;   // 이 문제에서 한 번만 넘어가게 (예전 문제의 타이머가 늦게 울려도 무시)
+    let fallback: ReturnType<typeof setTimeout> | null = null;
+    const go = () => {
+      if (done) return;
+      done = true;
+      if (fallback) clearTimeout(fallback);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      goNext(list);
+    };
     nextRef.current = go;
-    const fallback = setTimeout(go, 6000);
-    sayNumber(q.value, () => { clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); });
+    fallback = setTimeout(go, 6000);
+    sayNumber(q.value, () => { if (done) return; if (fallback) clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); });
   };
   /** 보기 지우기 힌트: 무료 없음, 1회 별 1개 (공통 장부) */
   const pressHint = () => {
