@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowRight, CheckCircle2, Flame, Home, Lightbulb, RotateCcw, Snail, Star, Volume2, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Flame, Home, Lightbulb, RotateCcw, Scissors, Star, Volume2, XCircle } from 'lucide-react';
 import { NumStage, Question, RoundItem, RoundKind, RoundRecord } from '../types';
 import { Milestone, actions, getState, useStore } from '../engine/store';
 import { HINT_COST, useWallet } from '../ace/wallet';
@@ -55,6 +55,8 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); stopSpeak(); }, []);
   const readyAt = useRef(0);
+  const advanced = useRef(false);                       // 맞힌 뒤 다음 문제로 넘어갔는지
+  const nextRef = useRef<() => void>(() => { });        // 「다음」 버튼이 부르는 동작
   useEffect(() => { readyAt.current = Date.now() + GUARD_MS; }, [idx, rIdx, phase]);
 
   // 풀 때마다 자동 저장 (앱이 닫혀도 이어서 풀 수 있게)
@@ -161,9 +163,9 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     setOkNow(ok);
     setPicked(value);
     // 틀렸으면 정답 소리를 덩어리로 한 번 더, 맞혔으면 보통 속도로 한 번
-    if (ok) sayNumber(q.value); else timerRef.current = setTimeout(() => sayNumberSlow(q.value, setActive), 300);
+    if (!ok) timerRef.current = setTimeout(() => sayNumberSlow(q.value, setActive), 300);
     if (inRetry) {   // 다시 풀기: 연습만. 별·기록·기억 상자는 그대로
-      if (ok) timerRef.current = setTimeout(() => goNext(items), 1600);
+      if (ok) advanceAfterSound(items);
       return;
     }
     // 기억 상자: 틀렸거나 힌트를 보고 맞힌 숫자는 "몰랐던 것"으로 보고 복습에 넣음.
@@ -178,14 +180,25 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     const nc = ok ? combo + 1 : 0;
     setCombo(nc);
     if (nc > maxCombo) setMaxCombo(nc);
-    if (ok) timerRef.current = setTimeout(() => goNext(next), 1600);
+    if (ok) advanceAfterSound(next);
   };
 
+  /**
+   * 맞혔을 때: 정답 숫자를 한 번 읽어 준 뒤 1.5초 쉬고 다음 문제로.
+   * 소리가 끝났다는 신호를 주지 않는 기기를 위해 6초가 지나면 넘어감. 「다음」을 누르면 바로 넘어감.
+   */
+  const advanceAfterSound = (list: RoundItem[]) => {
+    advanced.current = false;
+    const go = () => { if (advanced.current) return; advanced.current = true; if (timerRef.current) clearTimeout(timerRef.current); goNext(list); };
+    nextRef.current = go;
+    const fallback = setTimeout(go, 6000);
+    sayNumber(q.value, () => { clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); });
+  };
   /** 보기 지우기 힌트: 무료 없음, 1회 별 1개 (공통 장부) */
   const pressHint = () => {
     if (answered || hinted || inRetry) return;
     if (preview) { applyHint(); return; }   // 체험 중에는 별을 쓰지 않음
-    if (balance < HINT_COST) { toast('별이 모자라요. 천천히 들어 볼까? 🐌'); return; }
+    if (balance < HINT_COST) { toast('별이 모자라요. 끊어 듣기로 다시 들어 볼까? ✂️'); return; }
     setAskPaid(true);
   };
   const applyHint = () => {
@@ -221,7 +234,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     const cfg = pct >= 90 ? { emoji: '🏆', msg: '완벽해요!', sub: '영어 숫자를 정말 잘 듣는구나!', color: 'bg-amber-100' }
       : pct >= 70 ? { emoji: '🌟', msg: '잘했어요!', sub: '정말 열심히 들었구나!', color: 'bg-brand-100' }
         : pct >= 50 ? { emoji: '💪', msg: '조금만 더!', sub: '틀린 숫자는 곧 다시 만나게 돼!', color: 'bg-orange-100' }
-          : { emoji: '📚', msg: '다시 도전!', sub: '천천히 들으면 잘할 수 있어!', color: 'bg-rose-100' };
+          : { emoji: '📚', msg: '다시 도전!', sub: '끊어 들으면 잘할 수 있어!', color: 'bg-rose-100' };
     const spent = record.hintsPaid * HINT_COST;
     const passed = kind === 'check' && record.correct === record.total;
     return (
@@ -267,7 +280,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
               {preview && <p className="text-xs font-black text-slate-500 mt-2 bg-white rounded-xl px-3 py-2">👀 부모님 체험이라 별과 기록은 남지 않았어요.</p>}
               {record.lowAcc && (
                 <p className="text-xs font-black text-rose-500 mt-2 bg-white rounded-xl px-3 py-2">
-                  10문제 중 4문제보다 적게 맞혀서 이번 판은 별이 없어요. 천천히 듣고 고르면 별을 받을 수 있어! 💪
+                  10문제 중 4문제보다 적게 맞혀서 이번 판은 별이 없어요. 끊어 듣기로 잘 듣고 고르면 별을 받을 수 있어! 💪
                 </p>
               )}
             </button>
@@ -360,10 +373,10 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                       <Volume2 size={48} />
                       <span className="text-xs font-black">다시 듣기</span>
                     </button>
-                    <button onClick={() => sayNumberSlow(q.value)} aria-label="천천히 듣기"
+                    <button onClick={() => sayNumberSlow(q.value)} aria-label="끊어 듣기"
                       className="w-20 h-20 rounded-full bg-white border-2 border-brand-200 text-brand-600 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform">
-                      <Snail size={26} />
-                      <span className="text-[10px] font-black">천천히</span>
+                      <Scissors size={24} />
+                      <span className="text-[10px] font-black">끊어 듣기</span>
                     </button>
                   </div>
                 )}
@@ -379,7 +392,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                     className={`px-5 py-3 rounded-2xl font-black ${lastOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                     <div className="text-sm">{lastOk ? (inRetry ? '이번엔 맞혔어! 👍' : combo >= 5 ? `${combo}연속 정답! 불타오른다! 🔥` : combo >= 3 ? `${combo}연속! 대단해! ⚡` : '정답이야! 🌟') : '아까비! 덩어리로 끊어서 다시 들어 볼까? 💪'}</div>
                     <button onClick={() => sayNumberSlow(q.value, setActive)} className="mt-2 inline-flex items-center gap-1.5 text-xs font-black bg-white/80 text-slate-600 px-3 py-1.5 rounded-xl">
-                      <Snail size={14} />끊어서 다시 듣기
+                      <Scissors size={14} />끊어서 다시 듣기
                     </button>
                   </motion.div>
                 )}
@@ -439,6 +452,11 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
             </div>
           )}
 
+          {answered && lastOk && (
+            <button className="btn-secondary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => nextRef.current()}>
+              <span>다음</span><ArrowRight size={22} />
+            </button>
+          )}
           {answered && !lastOk && (
             <button className="btn-primary w-full py-4 mt-3 text-lg flex items-center justify-center gap-2" onClick={() => { if (Date.now() >= readyAt.current) goNext(items); }}>
               <span>알겠어요</span><ArrowRight size={22} />
@@ -477,7 +495,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
               className="bg-white rounded-[2rem] p-7 max-w-xs w-full text-center shadow-2xl space-y-4">
               <div className="text-5xl">💡</div>
               <h3 className="text-xl font-black text-slate-900 font-display">별 {HINT_COST}개를 쓰고 보기 하나를 지울까?</h3>
-              <p className="text-sm font-bold text-slate-500 break-keep">🐌 천천히 듣기는 별 없이 몇 번이든 할 수 있어요. 지금 가진 별은 {balance}개예요.</p>
+              <p className="text-sm font-bold text-slate-500 break-keep">✂️ 끊어 듣기는 별 없이 몇 번이든 할 수 있어요. 지금 가진 별은 {balance}개예요.</p>
               <div className="flex gap-2">
                 <button className="btn-secondary flex-1 py-3" onClick={() => setAskPaid(false)}>스스로 풀래</button>
                 <button className="btn-primary flex-1 py-3" onClick={() => {

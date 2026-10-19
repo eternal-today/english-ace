@@ -54,10 +54,10 @@ export function NumberView({ value, colored = false, labels = false, active = -1
   );
 }
 
-/** 보통 듣기 */
-export const sayNumber = (n: number) => speak(numWords(n));
+/** 보통 듣기 (다 읽으면 onEnd) */
+export const sayNumber = (n: number, onEnd?: () => void) => speak(numWords(n), onEnd);
 
-/** 천천히 듣기: 덩어리로 끊어 읽으며 setActive로 지금 읽는 덩어리를 알려 줌 */
+/** 끊어 듣기: 덩어리로 끊어 읽으며 setActive로 지금 읽는 덩어리를 알려 줌 */
 export function sayNumberSlow(n: number, setActive?: (i: number) => void) {
   const parts = numberParts(n);
   speakParts(parts.map(p => p.text), i => setActive?.(i));

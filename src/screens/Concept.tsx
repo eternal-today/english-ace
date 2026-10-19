@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Snail, Volume2, XCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Scissors, Volume2, XCircle } from 'lucide-react';
 import { ConceptNote } from '../engine/concepts';
 import { Question } from '../types';
 import { fmt } from '../engine/numbers';
@@ -61,7 +61,7 @@ export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; o
             {note.how.map((line, i) => <li key={i} className="en text-lg text-slate-700 bg-slate-50 rounded-xl px-3 py-2">{line}</li>)}
           </ul>
           <div className="flex gap-2">
-            <button onClick={() => sayNumberSlow(note.howExample, setActive)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Snail size={18} />끊어서 듣기</button>
+            <button onClick={() => sayNumberSlow(note.howExample, setActive)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Scissors size={18} />끊어서 듣기</button>
             <button onClick={() => sayNumber(note.howExample)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Volume2 size={18} />이어서 듣기</button>
           </div>
         </Section>

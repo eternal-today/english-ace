@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2, ChevronLeft, Eye, ChevronRight, Database, Gift, Hash, History, Home, Lightbulb, Lock,
-  Plus, Settings, Smartphone, Snail, Star, Volume2, XCircle,
+  Plus, Settings, Scissors, Smartphone, Star, Volume2, XCircle,
 } from 'lucide-react';
 import { Config, RoundRecord } from '../types';
 import { MAX_COUNT, MIN_COUNT, actions, earnedStars, getState, useStore } from '../engine/store';
@@ -66,7 +66,7 @@ function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =
         <Label>들어 보기</Label>
         <div className="grid grid-cols-2 gap-2">
           <button className="btn-secondary py-3 text-sm" onClick={() => play(() => speak(numWords(1234567)))}><span className="en">{fmt(1234567)}</span></button>
-          <button className="btn-secondary py-3 text-sm flex items-center justify-center gap-1.5" onClick={() => play(() => sayNumberSlow(12345))}><Snail size={16} /><span className="en">{fmt(12345)}</span> 끊어 읽기</button>
+          <button className="btn-secondary py-3 text-sm flex items-center justify-center gap-1.5" onClick={() => play(() => sayNumberSlow(12345))}><Scissors size={16} /><span className="en">{fmt(12345)}</span> 끊어 읽기</button>
           <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('How are you?'))}>How are you?</button>
           <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('a, apple'))}>a, apple</button>
         </div>
@@ -236,7 +236,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
             <Card>
               <Title icon={<Lightbulb size={18} className="text-amber-500" />}>힌트</Title>
               <div className="space-y-2 text-sm text-slate-500 leading-relaxed">
-                <p><strong className="text-slate-700">천천히 듣기</strong>는 몇 번이든 무료입니다. 덩어리로 끊어 읽고, 읽는 자리를 색으로 보여 줍니다.</p>
+                <p><strong className="text-slate-700">끊어 듣기</strong>는 몇 번이든 무료입니다. 덩어리마다 쉬어 가며 읽고, 읽는 자리를 색으로 보여 줍니다.</p>
                 <p><strong className="text-slate-700">보기 지우기</strong>는 무료가 없고, 한 번에 별 {HINT_COST}개를 씁니다.</p>
                 <p className="text-[11px] text-slate-400">힌트를 보고 맞힌 문제는 별은 그대로 받지만, 몰랐던 것으로 보고 다시 복습에 나옵니다.</p>
               </div>
