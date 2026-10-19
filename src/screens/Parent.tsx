@@ -76,6 +76,15 @@ function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =
           <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('How are you?'))}>How are you?</button>
           <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('a, apple'))}>a, apple</button>
         </div>
+        <div className="space-y-1.5 pt-2">
+          <Label>짧은 말 확인 (Hi 소리가 안 날 때)</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {['Hi!', 'Hi.', 'Hi', 'Hai!', 'Hey!', 'Hi there!', 'Hello!'].map(t => (
+              <button key={t} className="btn-secondary px-3 py-2 text-sm en" onClick={() => play(() => speak(t))}>{t}</button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400">이 기기에서 소리가 나는 것과 안 나는 것을 알려 주시면, 안 나는 말은 소리가 나는 형태로 바꿔 읽게 하겠습니다.</p>
+        </div>
       </div>
       <p className="text-[11px] text-slate-400 leading-relaxed">소리는 기기의 음성 엔진이 냅니다. 기기마다 목소리가 다를 수 있어 아이 태블릿에서 한 번 들어 보세요.</p>
     </Card>
