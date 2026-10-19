@@ -14,7 +14,9 @@ import { shuffle } from './numbers';
  * meaning 무슨 뜻일까: 표현을 듣고 한국어 뜻 고르기
  * reply   어떤 말에 한 대답일까: 대답을 듣고 상대가 한 말 고르기
  */
-export type PType = 'odd' | 'scene' | 'meaning' | 'reply' | 'wlisten' | 'wsee' | 'lyric' | 'sound';   // 뒤의 넷은 주제 여행 (engine/songs.ts)
+export type PType = 'odd' | 'scene' | 'meaning' | 'reply'
+  | 'wlisten' | 'wsee' | 'lyric' | 'sound'   // 주제 여행 (engine/songs.ts)
+  | 'pfirst' | 'pmatch' | 'pcase';            // 소리 탐정 (engine/phonics.ts)
 
 export interface POption {
   key: string;
@@ -22,7 +24,9 @@ export interface POption {
   correct: boolean;             // 이 문제의 정답 (odd에서는 엉뚱한 대답)
   speak?: string;               // 누르면 들려줄 영어 (영어 보기만)
   scene?: { emoji: string; icon?: string };   // 상황 보기의 그림
-  emoji?: string;               // 주제 여행: 단어 그림
+  emoji?: string;               // 주제 여행·소리 탐정: 단어 그림
+  sub?: string;                 // 답한 뒤 보기 아래에 보여 줄 짧은 설명
+  after?: string;               // 답한 뒤 보기를 누르면 들려줄 영어
 }
 export interface PQuestion {
   type: PType;
@@ -39,6 +43,9 @@ export interface PQuestion {
   emoji?: string;           // wsee: 보여 줄 그림
   lyric?: string;           // lyric: 빈칸이 있는 가사
   hideText?: boolean;       // 답하기 전에는 보기의 글을 숨김 (듣기 문제)
+  menu?: 'phrases' | 'songs' | 'phonics';   // 어느 메뉴 문제인지 (오늘의 한 판에서 섞을 때 씀)
+  letter?: string;          // 소리 탐정: 크게 보여 줄 글자
+  fb?: { word: string; emoji: string; ko: string; letter: string };   // 소리 탐정: 답한 뒤 보여 줄 단어
 }
 
 /** {name} {age}를 채운 상황. 채울 수 없는 대답은 빼고, 대답이 하나도 안 남으면 null */

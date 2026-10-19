@@ -18,6 +18,8 @@ import { allItems, fillOf, levelProgress, resolve } from '../engine/phrases';
 import { SONGS, SONG_BY_ID } from '../data/songs';
 import { SongPlayer, youtubeId } from '../components/SongPlayer';
 import { Music } from 'lucide-react';
+import { clearRound, loadRound } from '../engine/resume';
+import { groupProgress, openGroups } from '../engine/phonics';
 
 const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
   <section className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${dim ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>{children}</section>
@@ -33,6 +35,29 @@ const Stepper = ({ value, min, max, onChange, unit }: { value: number; min: numb
     <button className="w-11 h-11 rounded-xl border-2 border-slate-200 font-black text-slate-500 active:scale-90 disabled:opacity-30" disabled={value >= max} onClick={() => onChange(value + 1)}>+</button>
   </div>
 );
+
+/** 기록 정리 — 부모님이 아이 모드로 시험해 본 뒤 지우기 */
+function ResetCard() {
+  const store = useStore();
+  const [saved, setSaved] = useState(() => loadRound());
+  const menuName = (m?: string) => (m === 'phrases' ? '오늘의 한 마디' : m === 'songs' ? '주제 여행' : m === 'phonics' ? '소리 탐정' : '숫자 영어');
+  return (
+    <Card dim>
+      <Title icon={<Trash2 size={18} className="text-slate-400" />}>기록 정리</Title>
+      <p className="text-sm text-slate-500 leading-relaxed">아이 모드로 시험해 본 기록을 지울 때 써요. 지운 기록은 되돌릴 수 없어요.</p>
+      <div className="space-y-2">
+        <button className="btn-secondary w-full py-3 text-sm disabled:opacity-40" disabled={!saved} onClick={() => {
+          if (!window.confirm('풀던 판을 지울까요? 아이 홈의 "이어서 풀기"가 사라져요.')) return;
+          clearRound(); setSaved(null); toast('풀던 판을 지웠어요');
+        }}>{saved ? `풀던 판 지우기 (${menuName(saved.menu)} · ${saved.items.length}문제 풂)` : '풀던 판 없음'}</button>
+        <button className="btn-secondary w-full py-3 text-sm text-rose-600" onClick={() => {
+          if (!window.confirm('영어 학습 기록을 모두 지울까요?\n\n지우는 것: 기억 상자, 판 기록(영어에서 번 별 포함), 단계 진행, 들었어요 도장, 풀던 판\n남기는 것: 문제 설정, PIN, 부모님이 넣은 표현, 노래 주소\n\n힌트로 쓴 별은 모든 과목이 함께 쓰는 장부에 있어서 되돌아오지 않아요.')) return;
+          actions.resetLearning(); setSaved(null); toast('영어 학습 기록을 지웠어요');
+        }}>영어 학습 기록 모두 지우기 (기억 상자 {Object.keys(store.cards).length}개 · 판 {store.records.length}개)</button>
+      </div>
+    </Card>
+  );
+}
 
 /** 소리 확인 — 기기의 영어 목소리 목록과 들어 보기 (시험 페이지 기능을 앱 안으로) */
 function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
@@ -125,6 +150,37 @@ function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =>
 }
 
 /** 오늘의 한 마디 — 단계 진행, 표현 추가, 들었어요 도장 (바로 저장됨) */
+/** 소리 탐정 — 묶음별 진행, 먼저 열어 주기 */
+function PhonicsCard() {
+  const { cards, progress } = useStore();
+  const prog = groupProgress(cards);
+  const auto = openGroups(cards, 1);
+  const open = openGroups(cards, progress.phonicsOpen);
+  return (
+    <Card>
+      <Title icon={<Volume2 size={18} className="text-trust-600" />}>소리 탐정</Title>
+      <div className="grid gap-2">
+        {prog.map(g => {
+          const on = g.no <= open;
+          return (
+            <div key={g.id} className="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-400">{g.no}묶음 · <span className="en text-sm text-slate-600">{g.letters.join(' ')}</span></div>
+                <div className="text-sm font-black text-slate-700">{on ? `익힘 ${g.learned} · 만남 ${g.met} / ${g.total}` : '닫혀 있음'}</div>
+              </div>
+              {!on && <button className="btn-secondary px-3 py-2 text-xs shrink-0" onClick={() => {
+                if (window.confirm(`${g.no}묶음을 지금 열어 줄까요? 앞 묶음을 다 익히지 않아도 새 글자로 나오기 시작해요.`)) actions.setProgress({ phonicsOpen: g.no });
+              }}>열어 주기</button>}
+              {on && g.no > auto && g.no === open && <button className="btn-secondary px-3 py-2 text-xs shrink-0" onClick={() => actions.setProgress({ phonicsOpen: g.no - 1 })}>다시 닫기</button>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-slate-400 leading-relaxed">한 묶음의 글자를 모두 만나고 80%가 기억 상자 3칸 이상이 되면 다음 묶음이 저절로 열립니다. 아이가 이미 아는 글자라면 먼저 열어 줄 수 있어요. c와 k처럼 소리가 같은 글자는 소리 문제에서 같이 나오지 않습니다.</p>
+    </Card>
+  );
+}
+
 function PhraseCard() {
   const { config, cards, custom, heard } = useStore();
   const f = fillOf(config);
@@ -263,7 +319,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
     reader.readAsText(file);
   };
 
-  const stageName = (r: RoundRecord) => (r.menu === 'songs' ? `주제 여행 · ${r.unit ? SONG_BY_ID[r.unit]?.title : ''}` : r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
+  const stageName = (r: RoundRecord) => (r.menu === 'phonics' ? '소리 탐정' : r.menu === 'songs' ? `주제 여행 · ${r.unit ? SONG_BY_ID[r.unit]?.title : ''}` : r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24">
@@ -355,6 +411,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
             <PhraseCard />
 
             <SongCard draft={draft} setDraft={setDraft} />
+            <PhonicsCard />
 
             <Card>
               <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>
@@ -436,6 +493,8 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                 </div>
                 <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importBackup} />
               </Card>
+
+              <ResetCard />
 
               <Card dim>
                 <Title icon={<Smartphone size={18} className="text-slate-400" />}>홈 화면에 추가하기</Title>

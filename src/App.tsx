@@ -15,13 +15,15 @@ import Parent from './screens/Parent';
 import PhrasePlay from './screens/PhrasePlay';
 import { PhraseDogam, PhraseHome } from './screens/PhraseHome';
 import { SongList, SongUnitView } from './screens/SongHome';
+import { PhonicsConcept, PhonicsHome, SoundDogam } from './screens/PhonicsHome';
 import { SongPlayer } from './components/SongPlayer';
 import { SONG_BY_ID } from './data/songs';
 import { CONCEPT_BY_STAGE } from './engine/concepts';
 import { SavedRound, loadRound } from './engine/resume';
 import { stopSpeak } from './engine/speech';
 
-type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay';
+type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay'
+  | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam';
 
 // 첫 화면 그리기 전에: 축하 목록 준비 (처음이면 지금까지의 마일스톤을 조용히 "축하 완료"로)
 initCelebration();
@@ -38,6 +40,7 @@ export default function App() {
   const [resume, setResume] = useState<SavedRound | null>(null);
   const [unitId, setUnitId] = useState('oldmac');
   const [songOpen, setSongOpen] = useState(false);
+  const [phGroup, setPhGroup] = useState(1);
   const playBackRef = useRef<null | (() => void)>(null);
 
   // ── 기기의 뒤로가기 (한자 에이스와 같은 방식) ──
@@ -49,15 +52,16 @@ export default function App() {
     const onPop = () => {
       guard.current = false;
       const cur = nav.current;
-      if (cur.screen === 'child' && (cur.view === 'play' || cur.view === 'phrasePlay' || cur.view === 'songPlay')) {
+      if (cur.screen === 'child' && (cur.view === 'play' || cur.view === 'phrasePlay' || cur.view === 'songPlay' || cur.view === 'phonicsPlay')) {
         history.pushState({ english: 1 }, '');
         guard.current = true;
-        if (playBackRef.current) playBackRef.current(); else setView(cur.view === 'phrasePlay' ? 'phrases' : cur.view === 'songPlay' ? 'songUnit' : 'numbers');
+        if (playBackRef.current) playBackRef.current(); else setView(cur.view === 'phrasePlay' ? 'phrases' : cur.view === 'songPlay' ? 'songUnit' : cur.view === 'phonicsPlay' ? 'phonics' : 'numbers');
         return;
       }
       if (cur.screen === 'child' && cur.view === 'home') return;
-      if (cur.screen === 'child' && (cur.view === 'concept' || cur.view === 'phraseDogam' || cur.view === 'songUnit')) {
-        history.pushState({ english: 1 }, ''); guard.current = true; stopSpeak(); setView(cur.view === 'concept' ? 'numbers' : cur.view === 'songUnit' ? 'songs' : 'phrases'); return;
+      if (cur.screen === 'child' && (cur.view === 'concept' || cur.view === 'phraseDogam' || cur.view === 'songUnit' || cur.view === 'phonicsConcept' || cur.view === 'soundDogam')) {
+        history.pushState({ english: 1 }, ''); guard.current = true; stopSpeak();
+        setView(cur.view === 'concept' ? 'numbers' : cur.view === 'songUnit' ? 'songs' : cur.view === 'phonicsConcept' || cur.view === 'soundDogam' ? 'phonics' : 'phrases'); return;
       }
       stopSpeak();
       setScreen('child'); setView('home');
@@ -83,12 +87,14 @@ export default function App() {
     if (!saved) { setView('home'); return; }
     setResume(saved); setRoundKey(n => n + 1);
     if (saved.menu === 'phrases') { setView('phrasePlay'); return; }
+    if (saved.menu === 'phonics') { setView('phonicsPlay'); return; }
     if (saved.menu === 'songs' && saved.unitId) { setUnitId(saved.unitId); setView('songPlay'); return; }
     setStage(saved.stage); setKind(saved.kind); setView('play');
   };
   const startPhrases = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phrasePlay'); };
   const startSongs = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('songPlay'); };
-  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); };
+  const startPhonics = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phonicsPlay'); };
+  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 selection:bg-brand-100 selection:text-brand-900">
@@ -128,6 +134,15 @@ export default function App() {
             {view === 'phrasePlay' && (
               <PhrasePlay key={roundKey} resume={resume} backRef={playBackRef}
                 onExit={() => setView('phrases')} onAgain={startPhrases}
+                onMilestone={m => { setMilestone(m); fireConfetti(m.hall ? 'epic' : m.value % 50 === 0 ? 'big' : 'normal'); }}
+                onOpenShop={() => setRewardsOpen(true)} />
+            )}
+            {view === 'phonics' && <PhonicsHome onBack={() => setView('home')} onStart={startPhonics} onConcept={no => { setPhGroup(no); setView('phonicsConcept'); }} onDogam={() => setView('soundDogam')} />}
+            {view === 'phonicsConcept' && <PhonicsConcept key={phGroup} groupNo={phGroup} onBack={() => { stopSpeak(); setView('phonics'); }} onPlay={startPhonics} />}
+            {view === 'soundDogam' && <SoundDogam onBack={() => { stopSpeak(); setView('phonics'); }} />}
+            {view === 'phonicsPlay' && (
+              <PhrasePlay key={roundKey} phonics resume={resume} backRef={playBackRef}
+                onExit={() => setView('phonics')} onAgain={startPhonics}
                 onMilestone={m => { setMilestone(m); fireConfetti(m.hall ? 'epic' : m.value % 50 === 0 ? 'big' : 'normal'); }}
                 onOpenShop={() => setRewardsOpen(true)} />
             )}

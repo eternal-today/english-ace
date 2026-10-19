@@ -33,7 +33,7 @@ export interface RoundItem {
 export interface RoundRecord {
   ts: number;
   date: string;
-  menu: 'numbers' | 'phrases' | 'songs';
+  menu: 'numbers' | 'phrases' | 'songs' | 'phonics';
   stage?: NumStage;           // 숫자 영어만
   unit?: string;              // 주제 여행 단원
   kind: RoundKind;
@@ -70,4 +70,6 @@ export interface Progress {
   numCheck: boolean;      // 1~100 확인을 통과했는지 (또는 부모가 열어 줌)
   concepts: string[];     // 끝까지 본 개념 정리
   phraseLevel: number;    // 오늘의 한 마디에서 아이에게 알려 준 마지막 단계 (새 단계가 열리면 알림)
+  phonicsOpen: number;    // 소리 탐정: 부모님이 열어 준 묶음 수 (기본 1)
+  phonicsShown: number;   // 소리 탐정: 아이에게 알려 준 마지막 열린 묶음 수
 }

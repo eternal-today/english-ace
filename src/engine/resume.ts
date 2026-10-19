@@ -6,7 +6,7 @@ import type { PQuestion } from './phrases';
 
 export interface SavedRound {
   ts: number;
-  menu?: 'numbers' | 'phrases' | 'songs';   // 없으면 숫자 영어 (예전 저장)
+  menu?: 'numbers' | 'phrases' | 'songs' | 'phonics';   // 없으면 숫자 영어 (예전 저장)
   unitId?: string;                 // 주제 여행 단원
   stage: NumStage;
   kind: RoundKind;

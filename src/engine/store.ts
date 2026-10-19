@@ -69,13 +69,13 @@ function load(): State {
   const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) }, songs: { ...(saved.songs || {}) } };
   config.count = Math.min(MAX_COUNT, Math.max(MIN_COUNT, config.count || 10));
   setVoiceURI(config.voiceURI);
-  const progress = read<Progress>(K.progress, { numCheck: false, concepts: [], phraseLevel: 1 });
+  const progress = read<Partial<Progress>>(K.progress, {});
   return {
     preview: readPreview(),
     config,
     cards: read(K.cards, {}),
     records: read<RoundRecord[]>(K.records, []),
-    progress: { numCheck: !!progress.numCheck, concepts: Array.isArray(progress.concepts) ? progress.concepts : [], phraseLevel: progress.phraseLevel || 1 },
+    progress: { numCheck: !!progress.numCheck, concepts: Array.isArray(progress.concepts) ? progress.concepts : [], phraseLevel: progress.phraseLevel || 1, phonicsOpen: progress.phonicsOpen || 1, phonicsShown: progress.phonicsShown || 1 },
     custom: read<PhraseItem[]>(K.custom, []),
     heard: read<Record<string, number>>(K.heard, {}),
     pin: (() => { try { return localStorage.getItem(K.pin) || '1234'; } catch { return '1234'; } })(),
@@ -156,6 +156,12 @@ export const actions = {
     const cel = takeCelebration();
     if (!cel && !badge) return null;
     return { value: cel?.value ?? 0, hall: !!cel?.hall, badge: badge ? badge.name : null };
+  },
+  /** 학습 기록 지우기: 기억 상자·판 기록·단계 진행·도장·풀던 판. 설정·PIN·부모님이 넣은 표현·노래 주소는 남김 */
+  resetLearning() {
+    try { localStorage.removeItem(P + 'resume'); } catch { /* 무시 */ }
+    commit({ cards: {}, records: [], progress: { numCheck: false, concepts: [], phraseLevel: 1, phonicsOpen: 1, phonicsShown: 1 }, heard: {} });
+    notifyWallet();
   },
   /** 힌트에 별 쓰기 (에이스 지갑 공통 장부, 1회 1개). 남은 별이 모자라면 false */
   spendHint(note: string): boolean {
