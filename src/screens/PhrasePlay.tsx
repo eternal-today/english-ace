@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowRight, CheckCircle2, Flame, Home, Lightbulb, RotateCcw, Scissors, Sparkles, Star, Volume2, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Ear, Search, Flame, Home, Lightbulb, RotateCcw, Scissors, Sparkles, Star, Volume2, XCircle } from 'lucide-react';
 import { RoundItem, RoundRecord } from '../types';
 import { Milestone, actions, getState, useStore } from '../engine/store';
 import { HINT_COST, useWallet } from '../ace/wallet';
-import { PQuestion, allItems, fillOf, openLevel, planPRound, resolve } from '../engine/phrases';
+import { PQuestion, PType, allItems, fillOf, openLevel, planPRound, resolve } from '../engine/phrases';
 import { koFilled, koOf } from '../data/phrases';
 import { shuffle } from '../engine/numbers';
 import { applyAnswer } from '../engine/srs';
 import { speak, speakParts, speakWords, stopSpeak } from '../engine/speech';
 import { fireConfetti, tap, toast } from '../components/ui';
+import { SceneArt } from '../components/SceneArt';
 import { SavedRound, clearRound, saveRound } from '../engine/resume';
 
 const GUARD_MS = 400;
@@ -24,7 +25,15 @@ interface Props {
 }
 
 /** 상황 설명 (기록·힌트 장부에 남기는 짧은 글) */
-const promptText = (q: { say?: string; scene?: { ko: string } }) => q.say ? q.say : q.scene?.ko || '';
+const promptText = (q: { say?: string; scene?: { ko: string }; play?: string }) => q.play || q.say || q.scene?.ko || '';
+
+/** 문제 종류별 제목 (무엇을 고르는지 크게 보여 줌) */
+const TYPE_HEAD: Record<PType, { badge: string; title: string; sub: string }> = {
+  odd: { badge: '엉뚱한 대답 찾기', title: '딱 하나만 안 어울려요!', sub: '어울리지 않는 대답 하나를 골라요' },
+  scene: { badge: '언제 하는 말일까?', title: '이 말은 언제 할까요?', sub: '듣고 알맞은 상황을 골라요' },
+  meaning: { badge: '무슨 뜻일까?', title: '이 말은 무슨 뜻일까요?', sub: '듣고 알맞은 뜻을 골라요' },
+  reply: { badge: '어떤 말에 한 대답일까?', title: '누가 뭐라고 했을 때 한 대답일까요?', sub: '듣고 알맞은 말을 골라요' },
+};
 
 export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, resume, backRef }: Props) {
   const store = useStore();
@@ -86,8 +95,9 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   // 문제가 나오면 상대의 말을 들려줌
   useEffect(() => {
     setWord(-1);
-    if ((phase === 'solving' || phase === 'retry') && q?.say) {
-      const t = setTimeout(() => speak(q.say!), 350);
+    const first = q?.type === 'odd' ? q.say : q?.play;
+    if ((phase === 'solving' || phase === 'retry') && first) {
+      const t = setTimeout(() => speak(first), 350);
       return () => clearTimeout(t);
     }
   }, [phase, idx, rIdx]);
@@ -172,8 +182,11 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     };
     nextRef.current = go;
     fallback = setTimeout(go, 8000);
-    const right = q.options.filter(o => !o.odd).map(o => o.text);
-    const dialog = [q.say, right[0]].filter((x): x is string => !!x);
+    // 대화로 들려줌: 상대의 말 → 대답
+    const it = itemById(q.itemId);
+    const dialog = (q.type === 'odd' ? [q.say, q.options.find(o => !o.correct)?.text]
+      : q.type === 'reply' ? [it?.say, q.play]
+        : [it?.say && it.say !== q.play ? it.say : undefined, q.play]).filter((x): x is string => !!x);
     speakParts(dialog, i => { if (i === -1 && !done) { if (fallback) clearTimeout(fallback); timerRef.current = setTimeout(go, 1500); } }, 500);
   };
 
@@ -185,7 +198,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     setPicked(key);
     if (inRetry) {
       if (ok) advanceAfterSound(items);
-      else speak(q.options.find(o => o.odd)!.text);
+      else if (q.type === 'odd') speak(q.options.find(o => o.correct)!.text);
       return;
     }
     // 기억 상자: 틀렸거나 힌트를 보고 맞힌 상황은 몰랐던 것으로 보고 복습에 넣음
@@ -195,20 +208,21 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
       cards[id] = applyAnswer(cards[id], ok && !hinted, false);
       actions.setCards(cards);
     }
-    const oddText = q.options.find(o => o.odd)!.text;
-    const item: RoundItem = { id: 'ph:' + q.itemId, type: 'odd', q: promptText(q), ans: oddText, val: q.options.find(o => o.key === key)?.text || '', ok, hint: hinted };
+    const rightText = q.options.find(o => o.correct)!.text;
+    const item: RoundItem = { id: 'ph:' + q.itemId, type: 'odd', q: `${TYPE_HEAD[q.type].badge} · ${promptText(q)}`, ans: rightText, val: q.options.find(o => o.key === key)?.text || '', ok, hint: hinted };
     const next = [...items, item];
     setItems(next);
     const nc = ok ? combo + 1 : 0;
     setCombo(nc);
     if (nc > maxCombo) setMaxCombo(nc);
     if (ok) advanceAfterSound(next);
-    else speak(oddText);
+    else if (q.type === 'odd') speak(rightText);
+    else if (q.play) speak(q.play);
   };
 
-  /** 보기 지우기 힌트: 맞는 대답 하나를 지움 (무료 없음, 1회 별 1개) */
+  /** 보기 지우기 힌트: 정답이 아닌 보기 하나를 지움 (무료 없음, 1회 별 1개) */
   const applyHint = () => {
-    const right = q.options.filter(o => !o.odd && !removed.includes(o.key)).map(o => o.key);
+    const right = q.options.filter(o => !o.correct && !removed.includes(o.key)).map(o => o.key);
     if (right.length <= 1) { toast('더 지울 보기가 없어요'); return; }
     const out = right[Math.floor(Math.random() * right.length)];
     setRemoved([...removed, out]);
@@ -234,7 +248,8 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     if (answered || removed.includes(key)) return;
     selAt.current = Date.now();
     setSel(key);
-    speak(q.options.find(o => o.key === key)!.text);
+    const sp = q.options.find(o => o.key === key)?.speak;
+    if (sp) speak(sp);
   };
   const submitChoice = () => {
     if (!sel || removed.includes(sel) || Date.now() - selAt.current < GUARD_MS) return;
@@ -265,7 +280,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
           <AnimatePresence mode="wait">
             <motion.div key={p.id} initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }}
               className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-brand-100 p-7 space-y-4">
-              {p.scene && <div className="text-6xl">{p.scene.emoji}</div>}
+              {p.scene && <SceneArt scene={p.scene} size="lg" />}
               {p.scene && !p.say && <div className="text-lg font-black text-slate-700">{p.scene.ko}에는 이렇게 말해요</div>}
               {p.say && (
                 <button onClick={() => speak(p.say!)} className="w-full bg-brand-50 rounded-2xl px-4 py-3 active:scale-95">
@@ -387,7 +402,9 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   if (!q) return null;
   const curNo = inRetry ? rIdx + 1 : idx + 1;
   const curTotal = inRetry ? retryQs.length : questions.length;
-  const oddOpt = q.options.find(o => o.odd)!;
+  const rightOpt = q.options.find(o => o.correct)!;
+  const head = TYPE_HEAD[q.type];
+  const listenText = q.type === 'odd' ? q.say : q.play;   // 이 문제에서 듣는 말
   const pickedOpt = q.options.find(o => o.key === picked);
   const koText = (t: string) => koFilled(t, f);
 
@@ -428,18 +445,21 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
             <AnimatePresence mode="wait">
               <motion.div key={inRetry ? `r${rIdx}` : idx} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
                 className="flex flex-col items-center justify-center gap-4 w-full text-center">
-                <div className="text-sm font-bold text-slate-500">어울리지 않는 대답을 찾아요</div>
-                {q.scene && <div className="text-[clamp(4rem,16vmin,6.5rem)] leading-none">{q.scene.emoji}</div>}
-                {q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
-                {q.say && (
+                <div className="space-y-1">
+                  <div className={`inline-flex items-center gap-1.5 text-sm font-black px-4 py-1.5 rounded-full ${q.type === 'odd' ? 'bg-rose-100 text-rose-700' : 'bg-brand-100 text-brand-800'}`}>{q.type === 'odd' ? <Search size={16} strokeWidth={2.6} /> : <Ear size={16} strokeWidth={2.6} />}{head.badge}</div>
+                  <div className="text-lg font-black text-slate-800">{head.title}</div>
+                </div>
+                {q.type === 'odd' && q.scene && <SceneArt scene={q.scene} size="lg" />}
+                {q.type === 'odd' && q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
+                {listenText && (
                   <div className="space-y-3">
-                    <SayLine text={q.say} />
+                    {(q.type === 'odd' || answered) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
                     <div className="flex items-center justify-center gap-3">
-                      <button onClick={() => speak(q.say!)} aria-label="다시 듣기"
+                      <button onClick={() => speak(listenText)} aria-label="다시 듣기"
                         className="h-14 px-6 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center gap-2 font-black shadow-lg shadow-brand-200 active:scale-95">
                         <Volume2 size={24} />다시 듣기
                       </button>
-                      <button onClick={() => speakWords(q.say!, setWord)} aria-label="끊어 듣기"
+                      <button onClick={() => speakWords(listenText, setWord)} aria-label="끊어 듣기"
                         className="h-14 px-5 rounded-full bg-white border-2 border-brand-200 text-brand-600 flex items-center gap-2 font-black active:scale-95">
                         <Scissors size={20} />끊어 듣기
                       </button>
@@ -450,10 +470,23 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 {answered && (
                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                     className={`px-5 py-3 rounded-2xl font-black max-w-md ${lastOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                    <div className="text-sm">{lastOk ? (combo >= 3 && !inRetry ? `${combo}연속! 엉뚱한 대답 찾기 선수야! ⚡` : '엉뚱한 대답을 찾았어! 😆') : `'${pickedOpt?.text}'도 어울리는 대답이에요!`}</div>
-                    <div className="mt-1 text-sm font-bold text-slate-600 break-keep">
-                      <span className="en text-base text-slate-800">{oddOpt.text}</span>는 "{koText(oddOpt.text)}"라는 말이라서 여기엔 안 어울려요.
-                    </div>
+                    {q.type === 'odd' ? (
+                      <>
+                        <div className="text-sm">{lastOk ? (combo >= 3 && !inRetry ? `${combo}연속! 엉뚱한 대답 찾기 선수야! ⚡` : '엉뚱한 대답을 찾았어! 😆') : `'${pickedOpt?.text}'도 어울리는 대답이에요!`}</div>
+                        <div className="mt-1 text-sm font-bold text-slate-600 break-keep">
+                          <span className="en text-base text-slate-800">{rightOpt.text}</span>는 "{koText(rightOpt.text)}"라는 말이라서 여기엔 안 어울려요.
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm">{lastOk ? (combo >= 3 && !inRetry ? `${combo}연속! 대단해! ⚡` : '정답이야! 🌟') : '아까비! 정답을 같이 볼까? 💪'}</div>
+                        <div className="mt-1 text-sm font-bold text-slate-600 break-keep">
+                          <span className="en text-base text-slate-800">{q.play}</span>
+                          {q.type === 'reply' ? <> 는 <span className="en text-base text-slate-800">{rightOpt.text}</span>에 하는 대답이에요.</>
+                            : q.type === 'scene' ? <> 는 "{rightOpt.text}" 하는 말이에요.</> : <> 는 "{rightOpt.text}"라는 뜻이에요.</>}
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </motion.div>
@@ -462,9 +495,9 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
         </div>
 
         <div className="shrink-0 px-4 pb-4 pt-1 space-y-2 landscape:w-[44%] landscape:max-w-lg landscape:pl-2 landscape:pt-2 landscape:flex landscape:flex-col landscape:justify-center">
-          <div className="grid gap-2.5 grid-cols-1">
+          <div className={`grid gap-2.5 ${q.type === 'scene' ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {q.options.map(o => {
-              const isAns = o.odd;
+              const isAns = o.correct;
               const isPicked = o.key === picked;
               const gone = removed.includes(o.key) && !answered;
               const tone = answered
@@ -474,21 +507,24 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                   : o.key === sel ? 'bg-brand-100 border-brand-500 text-brand-900 shadow-md ring-2 ring-brand-200'
                     : 'bg-white border-slate-200 text-slate-800 shadow-sm active:bg-brand-50 active:border-brand-300';
               return (
-                <button key={o.key} disabled={gone} {...tap(() => (answered ? speak(o.text) : choose(o.key)))}
-                  className={`relative rounded-3xl border-2 transition-colors select-none flex items-center gap-3 px-4 py-3.5 text-left ${tone}`}>
-                  <Volume2 size={20} className="shrink-0 opacity-60" />
+                <button key={o.key} disabled={gone} {...tap(() => (answered ? (o.speak && speak(o.speak)) : choose(o.key)))}
+                  className={`relative rounded-3xl border-2 transition-colors select-none flex items-center gap-3 px-4 py-3.5 text-left ${q.type === 'scene' ? 'flex-col justify-center text-center py-4' : ''} ${tone}`}>
+                  {o.scene && <SceneArt scene={o.scene} size="sm" dim={gone} />}
+                  {o.speak && <Volume2 size={20} className="shrink-0 opacity-60" />}
                   <span className="min-w-0">
-                    <span className="en text-[clamp(1.2rem,4.5vmin,1.6rem)] block">{o.text}</span>
-                    {answered && <span className="text-xs font-bold text-slate-500">{koText(o.text)}</span>}
+                    <span className={`${o.speak ? 'en text-[clamp(1.2rem,4.5vmin,1.6rem)]' : 'text-[clamp(1rem,3.8vmin,1.25rem)] font-black'} block`}>{o.text}</span>
+                    {answered && o.speak && <span className="text-xs font-bold text-slate-500">{koText(o.text)}</span>}
                   </span>
-                  {answered && isAns && <span className="ml-auto shrink-0 text-[11px] font-black bg-emerald-500 text-white px-2 py-1 rounded-full">엉뚱해요</span>}
-                  {answered && !isAns && <CheckCircle2 size={18} className="ml-auto shrink-0 text-emerald-400" />}
+                  {q.type === 'odd' && answered && isAns && <span className="ml-auto shrink-0 text-[11px] font-black bg-emerald-500 text-white px-2 py-1 rounded-full">엉뚱해요</span>}
+                  {q.type === 'odd' && answered && !isAns && <CheckCircle2 size={18} className="ml-auto shrink-0 text-emerald-400" />}
+                  {q.type !== 'odd' && answered && isAns && <CheckCircle2 size={20} className="absolute top-2 right-2 text-emerald-500" />}
+                  {q.type !== 'odd' && answered && isPicked && !isAns && <XCircle size={20} className="absolute top-2 right-2 text-rose-500" />}
                 </button>
               );
             })}
           </div>
-          {!answered && <p className="text-center text-[11px] font-bold text-slate-400">보기를 누르면 소리가 나와요. 다 들어 보고 골라요</p>}
-          {answered && <p className="text-center text-[11px] font-bold text-slate-400">✅ 표시는 모두 어울리는 대답이에요. 눌러서 다시 들어 봐요</p>}
+          {!answered && q.type !== 'scene' && q.type !== 'meaning' && <p className="text-center text-[11px] font-bold text-slate-400">보기를 누르면 소리가 나와요. 다 들어 보고 골라요</p>}
+          {answered && q.type === 'odd' && <p className="text-center text-[11px] font-bold text-slate-400">✅ 표시는 모두 어울리는 대답이에요. 눌러서 다시 들어 봐요</p>}
 
           {!answered && (
             <div className="flex items-stretch gap-6 mt-4 pt-4 border-t-2 border-dashed border-slate-200">
@@ -503,7 +539,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
               </div>
               <div className="flex-1 min-w-0 flex gap-2">
                 <button className="btn-primary flex-1 py-4 text-lg flex items-center justify-center gap-2" disabled={!sel} onClick={submitChoice}>
-                  <span>{sel ? '이게 엉뚱해요' : '보기를 골라요'}</span>{sel && <ArrowRight size={22} />}
+                  <span>{sel ? (q.type === 'odd' ? '이게 엉뚱해요!' : '정답 확인') : (q.type === 'odd' ? '엉뚱한 대답을 골라요' : '보기를 골라요')}</span>{sel && <ArrowRight size={22} />}
                 </button>
               </div>
             </div>
@@ -549,7 +585,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8, opacity: 0 }} onClick={e => e.stopPropagation()}
               className="bg-white rounded-[2rem] p-7 max-w-xs w-full text-center shadow-2xl space-y-4">
               <div className="text-5xl">💡</div>
-              <h3 className="text-xl font-black text-slate-900 font-display">별 {HINT_COST}개를 쓰고 어울리는 대답 하나를 지울까?</h3>
+              <h3 className="text-xl font-black text-slate-900 font-display">별 {HINT_COST}개를 쓰고 보기 하나를 지울까?</h3>
               <p className="text-sm font-bold text-slate-500 break-keep">✂️ 끊어 듣기는 별 없이 몇 번이든 할 수 있어요. 지금 가진 별은 {balance}개예요.</p>
               <div className="flex gap-2">
                 <button className="btn-secondary flex-1 py-3" onClick={() => setAskPaid(false)}>스스로 풀래</button>

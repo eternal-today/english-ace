@@ -7,6 +7,7 @@ import { MAX_LEVEL, PhraseItem, koFilled } from '../data/phrases';
 import { dayIndex, toneOf } from '../engine/srs';
 import { speak, speakParts } from '../engine/speech';
 import { CloseButton, Sheet } from '../components/ui';
+import { SceneArt } from '../components/SceneArt';
 
 const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야' };
 
@@ -111,7 +112,7 @@ export function PhraseDogam({ onBack }: { onBack: () => void }) {
                   <button key={p.id} disabled={tone === 'none'} onClick={() => setOpen(p)}
                     className={`relative rounded-2xl border-2 p-3 min-h-[5.5rem] flex flex-col items-center justify-center gap-1 text-center ${cls}`}>
                     {tone === 'none' ? <span className="text-2xl font-black">?</span> : <>
-                      {p.scene && <span className="text-3xl leading-none">{p.scene.emoji}</span>}
+                      {p.scene && <SceneArt scene={p.scene} size="sm" dim={false} />}
                       <span className={`${p.say ? 'en text-base' : 'text-xs font-black'} leading-tight`}>{p.say || p.scene?.ko}</span>
                     </>}
                     {heard[p.id] && <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full rotate-12 shadow">들었어요!</span>}
@@ -129,7 +130,7 @@ export function PhraseDogam({ onBack }: { onBack: () => void }) {
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                {open.scene && <span className="text-5xl">{open.scene.emoji}</span>}
+                {open.scene && <SceneArt scene={open.scene} size="md" />}
                 <div>
                   <div className="text-xs font-black text-slate-400">{open.group}{open.scene ? ` · ${open.scene.ko}` : ''}</div>
                   {open.say && <button onClick={() => speak(open.say!)} className="en text-2xl text-slate-900 flex items-center gap-2"><Volume2 size={20} className="text-brand-500" />{open.say}</button>}

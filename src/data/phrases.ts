@@ -17,7 +17,7 @@ export interface PhraseItem {
   level: number;              // 단계 (앞 단계를 익히면 자동으로 열림)
   group: PhraseGroup;
   say?: string;               // 상대가 하는 말 (소리로 들려줌)
-  scene?: { emoji: string; ko: string };   // 상황 그림과 한국어 설명
+  scene?: { emoji: string; ko: string; icon?: string; name?: string };   // name: "언제 하는 말일까" 보기에 쓸 이름 (없으면 ko)   // 상황 그림(icon: 아이콘 이름, 없으면 emoji)과 한국어 설명
   answers: string[];          // 어울리는 대답 (모두 맞는 대답)
   oddEasy: string[];          // 쉬움: 상황이 완전히 다른 표현
   oddNormal: string[];        // 보통: 때가 틀린 표현
@@ -27,18 +27,18 @@ export interface PhraseItem {
 export const PHRASES: PhraseItem[] = [
   // ── 1단계: 인사 ──
   { id: 'hi-howareyou', level: 1, group: '인사', say: 'How are you?',
-    answers: ["I'm fine, thank you.", "I'm good.", "I'm great!", 'Not bad.', "I'm tired."],
+    answers: ["I'm fine, thank you.", "I'm good.", "I'm great!", 'Not bad.', "I'm tired.", "I'm fine.", "I'm okay."],
     oddEasy: ['Happy birthday!', 'Be careful!', 'Yummy!'], oddNormal: ['Goodbye!', 'Good night!', 'Nice to meet you.'] },
   { id: 'hi-hello', level: 1, group: '인사', say: 'Hello!',
     answers: ['Hello!', 'Hi!', 'Hi there!'],
     oddEasy: ["I'm sorry.", 'Oops!', 'Yummy!'], oddNormal: ['Good night!', 'Goodbye!', 'See you later!'] },
-  { id: 'hi-morning', level: 1, group: '인사', scene: { emoji: '🌅', ko: '아침에 만나면' },
+  { id: 'hi-morning', level: 1, group: '인사', scene: { emoji: '🌅', ko: '아침에 만나면', icon: 'Sunrise' },
     answers: ['Good morning!', 'Morning!', 'Hello!'],
     oddEasy: ['Be careful!', 'Happy birthday!', "I'm hungry!"], oddNormal: ['Good night!', 'Goodbye!', 'Sweet dreams!'] },
   { id: 'hi-bye', level: 1, group: '인사', say: 'Goodbye!',
     answers: ['Bye!', 'See you!', 'See you later!', 'Bye-bye!'],
     oddEasy: ["You're welcome.", 'Yummy!', 'Wow!'], oddNormal: ['Hello!', 'Nice to meet you.', 'Good morning!'] },
-  { id: 'hi-night', level: 1, group: '인사', scene: { emoji: '🌙', ko: '잘 때' },
+  { id: 'hi-night', level: 1, group: '인사', scene: { emoji: '🌙', ko: '잘 때', icon: 'Moon' },
     answers: ['Good night!', 'Sweet dreams!', 'See you tomorrow!'],
     oddEasy: ["Let's go!", 'Hooray!', 'Yummy!'], oddNormal: ['Good morning!', 'Hello!', 'Nice to meet you.'] },
   { id: 'hi-nice', level: 1, group: '인사', say: 'Nice to meet you.',
@@ -55,10 +55,10 @@ export const PHRASES: PhraseItem[] = [
   { id: 'fe-okay', level: 1, group: '기분', say: 'Are you okay?',
     answers: ["I'm okay.", "I'm fine.", "Yes, I'm okay."],
     oddEasy: ['Good morning!', 'Happy birthday!', "Let's go!"], oddNormal: ["You're welcome.", 'Nice to meet you.', 'Good night!'] },
-  { id: 'fe-hungry', level: 1, group: '기분', scene: { emoji: '😋', ko: '배고플 때' },
+  { id: 'fe-hungry', level: 1, group: '기분', scene: { emoji: '😋', ko: '배고플 때', icon: 'Utensils' },
     answers: ["I'm hungry!", "Let's eat!", 'I want some food.'],
     oddEasy: ['Excuse me.', 'See you!', 'Hooray!'], oddNormal: ["I'm sleepy.", "I'm full.", 'Good night!'] },
-  { id: 'fe-sleepy', level: 1, group: '기분', scene: { emoji: '😴', ko: '졸릴 때' },
+  { id: 'fe-sleepy', level: 1, group: '기분', scene: { emoji: '😴', ko: '졸릴 때', icon: 'Bed' },
     answers: ["I'm sleepy.", "I'm tired.", 'Good night!'],
     oddEasy: ['Hooray!', 'Happy birthday!', 'Yummy!'], oddNormal: ["I'm hungry!", 'Good morning!', "Let's go!"] },
   // ── 1단계: 부탁 ──
@@ -68,23 +68,23 @@ export const PHRASES: PhraseItem[] = [
   { id: 'as-play', level: 1, group: '부탁', say: "Let's play!",
     answers: ['Okay!', 'Sure!', "Let's go!"],
     oddEasy: ['Good night!', "I'm sorry.", 'Yummy!'], oddNormal: ['Excuse me.', 'See you later!', 'Good morning!'] },
-  { id: 'as-excuse', level: 1, group: '부탁', scene: { emoji: '🚶', ko: '사람들 사이로 지나가야 할 때' },
+  { id: 'as-excuse', level: 1, group: '부탁', scene: { emoji: '🚶', ko: '사람들 사이로 지나가야 할 때', icon: 'Users' },
     answers: ['Excuse me.', 'Excuse me, please.'],
     oddEasy: ['Good job!', 'Yummy!', 'Hooray!'], oddNormal: ['Thank you!', 'Good morning!', 'See you!'] },
   // ── 1단계: 감탄·칭찬 ──
-  { id: 'wo-gift', level: 1, group: '감탄·칭찬', scene: { emoji: '🎁', ko: '선물을 받았을 때' },
+  { id: 'wo-gift', level: 1, group: '감탄·칭찬', scene: { emoji: '🎁', ko: '선물을 받았을 때', icon: 'Gift' },
     answers: ['Wow!', 'Thank you!', 'Hooray!', 'I love it!'],
     oddEasy: ['Excuse me.', "I'm sleepy.", 'Be careful!'], oddNormal: ['Oh no!', 'Oops!', "I'm sorry."] },
-  { id: 'wo-spill', level: 1, group: '감탄·칭찬', scene: { emoji: '🥛', ko: '우유를 쏟았을 때' },
+  { id: 'wo-spill', level: 1, group: '감탄·칭찬', scene: { emoji: '🥛', ko: '우유를 쏟았을 때', icon: 'Milk' },
     answers: ['Oops!', 'Oh no!', "I'm sorry."],
     oddEasy: ['Happy birthday!', 'Good morning!', "Let's eat!"], oddNormal: ['Hooray!', 'Wow!', 'Good job!'] },
-  { id: 'wo-goodjob', level: 1, group: '감탄·칭찬', scene: { emoji: '👍', ko: '친구가 잘했을 때' },
+  { id: 'wo-goodjob', level: 1, group: '감탄·칭찬', scene: { emoji: '👍', ko: '친구가 잘했을 때', icon: 'ThumbsUp' },
     answers: ['Good job!', 'Great!', 'Well done!'],
     oddEasy: ['Good night!', "I'm hungry!", 'Excuse me.'], oddNormal: ['Oops!', 'Oh no!', "I'm sorry."] },
-  { id: 'wo-birthday', level: 1, group: '감탄·칭찬', scene: { emoji: '🎂', ko: '친구 생일에' },
+  { id: 'wo-birthday', level: 1, group: '감탄·칭찬', scene: { emoji: '🎂', ko: '친구 생일에', icon: 'Cake' },
     answers: ['Happy birthday!', 'Happy birthday to you!'],
     oddEasy: ["I'm tired.", 'Excuse me.', 'Good night!'], oddNormal: ['Good job!', 'Nice to meet you.', 'Oops!'] },
-  { id: 'wo-careful', level: 1, group: '감탄·칭찬', scene: { emoji: '⚠️', ko: '친구가 위험할 때' },
+  { id: 'wo-careful', level: 1, group: '감탄·칭찬', scene: { emoji: '⚠️', ko: '친구가 위험할 때', icon: 'TriangleAlert' },
     answers: ['Be careful!', 'Watch out!'],
     oddEasy: ['Yummy!', 'Happy birthday!', 'Nice to meet you.'], oddNormal: ['Good job!', 'Hooray!', 'Wow!'] },
 
@@ -96,19 +96,19 @@ export const PHRASES: PhraseItem[] = [
     answers: ["I'm {age}.", "I'm {age} years old."],
     oddEasy: ["It's rainy.", 'Good job!', 'Oops!'], oddNormal: ["I'm fine, thank you.", "It's a dog.", "I'm hungry!"] },
   // ── 2단계: 날씨 ──
-  { id: 'we-sunny', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '☀️', ko: '오늘 날씨는?' },
+  { id: 'we-sunny', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '☀️', ko: '오늘 날씨는?', icon: 'Sun', name: '맑은 날' },
     answers: ["It's sunny.", "It's sunny today.", "It's a sunny day."],
     oddEasy: ["It's a cat.", 'Good job!', 'Thank you!'], oddNormal: ["It's rainy.", "It's snowy.", "It's cloudy."] },
-  { id: 'we-rainy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '🌧️', ko: '오늘 날씨는?' },
+  { id: 'we-rainy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '🌧️', ko: '오늘 날씨는?', icon: 'CloudRain', name: '비 오는 날' },
     answers: ["It's rainy.", "It's raining.", "It's a rainy day."],
     oddEasy: ["It's a dog.", 'Hello!', 'Good night!'], oddNormal: ["It's sunny.", "It's snowy.", "It's windy."] },
-  { id: 'we-cloudy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '☁️', ko: '오늘 날씨는?' },
+  { id: 'we-cloudy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '☁️', ko: '오늘 날씨는?', icon: 'Cloud', name: '흐린 날' },
     answers: ["It's cloudy.", "It's cloudy today.", "It's a cloudy day."],
     oddEasy: ["It's a duck.", 'Thank you!', 'Oops!'], oddNormal: ["It's sunny.", "It's snowy.", "It's windy."] },
-  { id: 'we-snowy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '❄️', ko: '오늘 날씨는?' },
+  { id: 'we-snowy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '❄️', ko: '오늘 날씨는?', icon: 'Snowflake', name: '눈 오는 날' },
     answers: ["It's snowy.", "It's snowing.", "It's a snowy day."],
     oddEasy: ["It's a cow.", 'Hello!', "I'm sorry."], oddNormal: ["It's sunny.", "It's rainy.", "It's windy."] },
-  { id: 'we-windy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '💨', ko: '오늘 날씨는?' },
+  { id: 'we-windy', level: 2, group: '날씨', say: "How's the weather today?", scene: { emoji: '💨', ko: '오늘 날씨는?', icon: 'Wind', name: '바람 부는 날' },
     answers: ["It's windy.", "It's windy today.", "It's a windy day."],
     oddEasy: ["It's a cat.", 'Good job!', 'Yummy!'], oddNormal: ["It's sunny.", "It's rainy.", "It's snowy."] },
   // ── 2단계: 이게 뭐야 ──

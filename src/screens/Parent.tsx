@@ -153,7 +153,7 @@ function PhraseCard() {
             {met.map(p => (
               <button key={p.id} onClick={() => actions.toggleHeard(p.id)}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold border-2 flex items-center gap-1 ${heard[p.id] ? 'bg-rose-50 border-rose-300 text-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}>
-                {heard[p.id] && <Stamp size={12} />}{p.scene?.emoji} {p.say || p.scene?.ko}
+                {heard[p.id] && <Stamp size={12} />}{p.say || p.scene?.ko}
               </button>
             ))}
           </div>
