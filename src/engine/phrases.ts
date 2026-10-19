@@ -2,7 +2,7 @@
  * 오늘의 한 마디 — 판 만들기, 단계 자동 열기
  * 문제는 "엉뚱한 대답 찾기": 보기 가운데 어울리지 않는 하나를 고름. 나머지는 모두 맞는 대답.
  */
-import { Card, Config } from '../types';
+import { Card, Config, Question } from '../types';
 import { Fill, MAX_LEVEL, PHRASES, PhraseItem, fill, koFilled } from '../data/phrases';
 import { dayIndex } from './srs';
 import { shuffle } from './numbers';
@@ -16,7 +16,8 @@ import { shuffle } from './numbers';
  */
 export type PType = 'odd' | 'scene' | 'meaning' | 'reply'
   | 'wlisten' | 'wsee' | 'lyric' | 'sound'   // 주제 여행 (engine/songs.ts)
-  | 'pfirst' | 'pmatch' | 'pcase';            // 소리 탐정 (engine/phonics.ts)
+  | 'pfirst' | 'pmatch' | 'pcase'             // 소리 탐정 (engine/phonics.ts)
+  | 'num';                                    // 숫자 영어 (오늘의 한 판에서만, engine/daily.ts)
 
 export interface POption {
   key: string;
@@ -43,9 +44,10 @@ export interface PQuestion {
   emoji?: string;           // wsee: 보여 줄 그림
   lyric?: string;           // lyric: 빈칸이 있는 가사
   hideText?: boolean;       // 답하기 전에는 보기의 글을 숨김 (듣기 문제)
-  menu?: 'phrases' | 'songs' | 'phonics';   // 어느 메뉴 문제인지 (오늘의 한 판에서 섞을 때 씀)
+  menu?: 'phrases' | 'songs' | 'phonics' | 'numbers';   // 어느 메뉴 문제인지 (오늘의 한 판에서 섞을 때 씀)
   letter?: string;          // 소리 탐정: 크게 보여 줄 글자
   fb?: { word: string; emoji: string; ko: string; letter: string };   // 소리 탐정: 답한 뒤 보여 줄 단어
+  num?: Question;           // 숫자 영어 문제 (type 'num')
 }
 
 /** {name} {age}를 채운 상황. 채울 수 없는 대답은 빼고, 대답이 하나도 안 남으면 null */

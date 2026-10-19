@@ -33,7 +33,7 @@ export interface RoundItem {
 export interface RoundRecord {
   ts: number;
   date: string;
-  menu: 'numbers' | 'phrases' | 'songs' | 'phonics';
+  menu: 'numbers' | 'phrases' | 'songs' | 'phonics' | 'daily';
   stage?: NumStage;           // 숫자 영어만
   unit?: string;              // 주제 여행 단원
   kind: RoundKind;

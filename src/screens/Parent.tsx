@@ -320,7 +320,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
     reader.readAsText(file);
   };
 
-  const stageName = (r: RoundRecord) => (r.menu === 'phonics' ? '소리 탐정' : r.menu === 'songs' ? `주제 여행 · ${r.unit ? SONG_BY_ID[r.unit]?.title : ''}` : r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
+  const stageName = (r: RoundRecord) => (r.menu === 'daily' ? '오늘의 한 판' : r.menu === 'phonics' ? '소리 탐정' : r.menu === 'songs' ? `주제 여행 · ${r.unit ? SONG_BY_ID[r.unit]?.title : ''}` : r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24">

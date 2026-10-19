@@ -24,7 +24,7 @@ import { stopSpeak } from './engine/speech';
 import { confirmLeave } from './ace/SaveBar';
 
 type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay'
-  | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam';
+  | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam' | 'dailyPlay';
 
 // 첫 화면 그리기 전에: 축하 목록 준비 (처음이면 지금까지의 마일스톤을 조용히 "축하 완료"로)
 initCelebration();
@@ -53,10 +53,10 @@ export default function App() {
     const onPop = () => {
       guard.current = false;
       const cur = nav.current;
-      if (cur.screen === 'child' && (cur.view === 'play' || cur.view === 'phrasePlay' || cur.view === 'songPlay' || cur.view === 'phonicsPlay')) {
+      if (cur.screen === 'child' && (cur.view === 'play' || cur.view === 'phrasePlay' || cur.view === 'songPlay' || cur.view === 'phonicsPlay' || cur.view === 'dailyPlay')) {
         history.pushState({ english: 1 }, '');
         guard.current = true;
-        if (playBackRef.current) playBackRef.current(); else setView(cur.view === 'phrasePlay' ? 'phrases' : cur.view === 'songPlay' ? 'songUnit' : cur.view === 'phonicsPlay' ? 'phonics' : 'numbers');
+        if (playBackRef.current) playBackRef.current(); else setView(cur.view === 'phrasePlay' ? 'phrases' : cur.view === 'songPlay' ? 'songUnit' : cur.view === 'phonicsPlay' ? 'phonics' : cur.view === 'dailyPlay' ? 'home' : 'numbers');
         return;
       }
       if (cur.screen === 'child' && cur.view === 'home') return;
@@ -90,11 +90,13 @@ export default function App() {
     setResume(saved); setRoundKey(n => n + 1);
     if (saved.menu === 'phrases') { setView('phrasePlay'); return; }
     if (saved.menu === 'phonics') { setView('phonicsPlay'); return; }
+    if (saved.menu === 'daily') { setView('dailyPlay'); return; }
     if (saved.menu === 'songs' && saved.unitId) { setUnitId(saved.unitId); setView('songPlay'); return; }
     setStage(saved.stage); setKind(saved.kind); setView('play');
   };
   const startPhrases = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phrasePlay'); };
   const startSongs = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('songPlay'); };
+  const startDaily = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('dailyPlay'); };
   const startPhonics = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phonicsPlay'); };
   const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); };
 
@@ -118,7 +120,7 @@ export default function App() {
                 <button className="bg-white/15 rounded-lg px-3 py-1 text-xs font-black" onClick={() => { actions.setPreview(false); setView('home'); }}>체험 끝내기</button>
               </div>
             )}
-            {view === 'home' && <ChildHome onParent={() => askPin('', () => setScreen('parent'))} onMenu={openMenu} onResume={resumeRound} onRewards={() => setRewardsOpen(true)} onDogam={() => setView('phraseDogam')} />}
+            {view === 'home' && <ChildHome onParent={() => askPin('', () => setScreen('parent'))} onMenu={openMenu} onResume={resumeRound} onRewards={() => setRewardsOpen(true)} onDogam={() => setView('phraseDogam')} onDaily={startDaily} />}
             {view === 'numbers' && <NumberMenu onBack={() => setView('home')} onStart={start} onConcept={st => { setStage(st); setView('concept'); }} />}
             {view === 'concept' && (
               <Concept key={stage} note={CONCEPT_BY_STAGE[stage]} onBack={() => { stopSpeak(); setView('numbers'); }} onPlay={() => start(stage, 'play')} />
@@ -142,6 +144,12 @@ export default function App() {
             {view === 'phonics' && <PhonicsHome onBack={() => setView('home')} onStart={startPhonics} onConcept={no => { setPhGroup(no); setView('phonicsConcept'); }} onDogam={() => setView('soundDogam')} />}
             {view === 'phonicsConcept' && <PhonicsConcept key={phGroup} groupNo={phGroup} onBack={() => { stopSpeak(); setView('phonics'); }} onPlay={startPhonics} />}
             {view === 'soundDogam' && <SoundDogam onBack={() => { stopSpeak(); setView('phonics'); }} />}
+            {view === 'dailyPlay' && (
+              <PhrasePlay key={roundKey} daily resume={resume} backRef={playBackRef}
+                onExit={() => setView('home')} onAgain={startDaily}
+                onMilestone={m => { setMilestone(m); fireConfetti(m.hall ? 'epic' : m.value % 50 === 0 ? 'big' : 'normal'); }}
+                onOpenShop={() => setRewardsOpen(true)} />
+            )}
             {view === 'phonicsPlay' && (
               <PhrasePlay key={roundKey} phonics resume={resume} backRef={playBackRef}
                 onExit={() => setView('phonics')} onAgain={startPhonics}
