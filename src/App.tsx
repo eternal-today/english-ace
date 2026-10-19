@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MenuId, NumStage, RoundKind } from './types';
 import { BADGES, Milestone, useStore } from './engine/store';
-import { initCelebration } from './ace/wallet';
+import { initCelebration, migrateEnglishRecords } from './ace/wallet';
 import { startAceSync } from './ace/aceSync';
 import { AceRewardsSheet } from './ace/Rewards';
 import { Overlays, askPin, fireConfetti } from './components/ui';
@@ -28,6 +28,7 @@ type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDo
 
 // 첫 화면 그리기 전에: 축하 목록 준비 (처음이면 지금까지의 마일스톤을 조용히 "축하 완료"로)
 initCelebration();
+migrateEnglishRecords();   // 처음 한 번: 지금까지의 영어 기록을 서버로 올릴 대기열에 넣음
 
 export default function App() {
   const store = useStore();

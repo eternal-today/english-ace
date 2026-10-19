@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from 'react';
 import { Card, Config, Progress, RoundRecord } from '../types';
 import { PhraseItem } from '../data/phrases';
-import { notifyWallet, spendHint, takeCelebration } from '../ace/wallet';
+import { forgetEnglishRecords, markDirty, notifyWallet, spendHint, takeCelebration } from '../ace/wallet';
 import { setVoiceURI } from './speech';
 
 const P = 'english_';
@@ -150,6 +150,7 @@ export const actions = {
     const before = earnedStars(state);
     const records = [rec, ...state.records].map((r, i) => (i >= 300 && r.items?.length ? { ...r, items: [] } : r));
     commit({ records });
+    markDirty('english', rec.ts);   // 다른 기기(에이스 홈 등)에서도 영어 별을 계산할 수 있게 서버로 올림
     notifyWallet();
     const after = earnedStars(state);
     const badge = BADGES.find(b => before < b.need && after >= b.need) || null;
@@ -160,6 +161,7 @@ export const actions = {
   /** 학습 기록 지우기: 기억 상자·판 기록·단계 진행·도장·풀던 판. 설정·PIN·부모님이 넣은 표현·노래 주소는 남김 */
   resetLearning() {
     try { localStorage.removeItem(P + 'resume'); } catch { /* 무시 */ }
+    forgetEnglishRecords();   // 서버와 다른 기기에도 지운 것으로 알림
     commit({ cards: {}, records: [], progress: { numCheck: false, concepts: [], phraseLevel: 1, phonicsOpen: 1, phonicsShown: 1 }, heard: {} });
     notifyWallet();
   },

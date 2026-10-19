@@ -481,7 +481,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               <Card dim>
                 <Title icon={<Database size={18} className="text-slate-400" />}>기록 백업</Title>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  영어 기록과 설정은 아직 이 기기에만 저장됩니다 (다른 기기와 맞추는 동기화는 별·허브 연동 때 붙입니다). 기기를 바꾸기 전에 백업 파일로 내려받아 두세요.
+                  판 기록(별 계산에 쓰는 것)은 수학 에이스에 연결한 동기화 서버로 올라가서 에이스 홈과 다른 기기에서도 별이 맞게 보입니다. 기억 상자·단계 진행·설정은 이 기기에만 저장되니, 기기를 바꾸기 전에 백업 파일로 내려받아 두세요.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button className="btn-secondary py-3 text-sm" onClick={exportBackup}>백업 파일 받기</button>

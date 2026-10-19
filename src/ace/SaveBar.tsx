@@ -1,6 +1,6 @@
 /**
- * 부모님 화면의 떠 있는 저장 막대 + 저장하지 않고 나갈 때 확인 (한자 에이스 src/ace/SaveBar.tsx와 같음)
- * ※ src/ace 폴더는 허브·수학·한자·영어 저장소에 똑같이 들어 있음. 고치면 같이 복사.
+ * 부모님 화면의 떠 있는 저장 막대 + 저장하지 않고 나갈 때 확인
+ * ※ src/ace 폴더는 허브·수학·한자·영어 네 저장소에 똑같이 들어 있음. 고치면 네 곳에 같이 복사.
  *
  *  <AceSaveBar dirty onSave onRevert />  바뀐 설정이 있을 때만 화면 아래에 떠오름
  *  confirmLeave()                        부모님 화면을 나가기 전에 부름. 나가도 되면 true
@@ -41,7 +41,7 @@ export function AceSaveBar({ dirty, onSave, onRevert, label = '바뀐 설정이 
     window.addEventListener('beforeunload', onUnload);
     return () => { window.removeEventListener('beforeunload', onUnload); root.style.scrollPaddingBottom = prevPad; };
   });
-  useEffect(() => () => { unsaved = false; revertImpl = null; }, []);   // 화면을 떠나면 정리
+  useEffect(() => () => { unsaved = false; revertImpl = null; }, []);
   // 막대가 처음 뜰 때 입력 중인 칸이 가려지면 살짝 올림
   useEffect(() => {
     if (!dirty) return;
@@ -49,7 +49,7 @@ export function AceSaveBar({ dirty, onSave, onRevert, label = '바뀐 설정이 
     if (el && el !== document.body && el.getBoundingClientRect().bottom > window.innerHeight - 96) {
       window.scrollBy({ top: el.getBoundingClientRect().bottom - window.innerHeight + 112, behavior: 'smooth' });
     }
-  }, [dirty]);
+  }, [dirty]);   // 화면을 떠나면 정리
 
   return (
     <>

@@ -1,10 +1,8 @@
 /**
  * 에이스 시리즈 공통 별 지갑 — 규칙 문서(common/star-chance-rules.md) 1·2·4·8번
- * ※ src/ace 폴더는 허브·수학·한자 세 저장소에 똑같이 들어 있음. 고치면 세 곳에 같이 복사.
+ * ※ src/ace 폴더는 허브·수학·한자·영어 네 저장소에 똑같이 들어 있음. 고치면 네 곳에 같이 복사.
  *
- * 세 앱이 같은 주소(eternal-today.github.io) 아래에 있어 기기 저장소를 함께 씀.
- *
- * [영어 에이스 1차] 영어 번 별(english_records)을 합산에 더함. 다른 앱은 ⑤ 연동 때 같이 고침.
+ * 네 앱이 같은 주소(eternal-today.github.io) 아래에 있어 기기 저장소를 함께 씀.
  *
  * 남은 별 = 수학 번 별 + 한자 번 별 + 영어 번 별 + 부모님이 준 별
  *         − 수학 기록 속 힌트 별 − 공통 장부의 힌트 별 − 쿠폰 가격(되돌린 쿠폰 제외)
@@ -28,13 +26,16 @@ export const K = {
   cacheMath: 'ace_cache_math',     // 다른 기기에서 받은 수학 기록 요약
   cacheHanja: 'ace_cache_hanja',   // 다른 기기에서 받은 한자 기록 요약
   migratedHanja: 'ace_migrated_hanja_v1',
-  dirty: 'ace_sync_dirty',         // { wallet: number[], hanja: number[] } 아직 서버에 안 올린 것
+  cacheEnglish: 'ace_cache_english',   // 다른 기기에서 받은 영어 기록 요약
+  migratedEnglish: 'ace_migrated_english_v1',
+  englishGone: 'ace_english_deleted',  // { [ts]: 지운 시각 } 부모님이 지운 영어 기록 (다른 기기에도 지운 것으로 알림)
+  dirty: 'ace_sync_dirty',         // { wallet: number[], hanja: number[], english: number[] } 아직 서버에 안 올린 것
 };
 
 /** 다른 앱이 쓰는 키 (대부분 읽기만) */
 const MATH = { records: 'records', wish: 'wish_coupons', used: 'used_coupons', config: 'app_config', pin: 'parent_pin' };
 const HANJA = { records: 'hanja_records', spends: 'hanja_spends', coupons: 'hanja_coupons', config: 'hanja_config', pin: 'hanja_parent_pin' };
-const ENGLISH = { records: 'english_records', config: 'english_config' };
+const ENGLISH = { records: 'english_records', config: 'english_config', pin: 'english_parent_pin' };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -137,10 +138,10 @@ export function useWallet(): Summary {
 // ─────────────────────────────────────────────
 // 동기화 대기열
 // ─────────────────────────────────────────────
-export type SyncProfile = 'wallet' | 'hanja';
+export type SyncProfile = 'wallet' | 'hanja' | 'english';
 export function readDirty(): Record<SyncProfile, number[]> {
   const d = readJSON<Partial<Record<SyncProfile, number[]>>>(K.dirty, {});
-  return { wallet: d.wallet || [], hanja: d.hanja || [] };
+  return { wallet: d.wallet || [], hanja: d.hanja || [], english: d.english || [] };
 }
 export function writeDirty(d: Record<SyncProfile, number[]>) { writeJSON(K.dirty, d); }
 export function markDirty(p: SyncProfile, id: number) {
@@ -181,13 +182,19 @@ function hanjaRows(): Map<number, HanjaRow> {
   return out;
 }
 
-function englishRows(): Map<number, HanjaRow> {
-  const out = new Map<number, HanjaRow>();
+/** 영어 기록 (이 기기 + 다른 기기에서 받은 것). 부모님이 지운 기록은 뺌 */
+interface EnglishRow { s: number; c: number; t: number; u: number; d?: boolean }
+function englishGone(): Record<string, number> { return readJSON<Record<string, number>>(K.englishGone, {}); }
+function englishRows(): Map<number, EnglishRow> {
+  const out = new Map<number, EnglishRow>();
+  const cache = readJSON<Record<string, EnglishRow>>(K.cacheEnglish, {});
+  for (const [k, v] of Object.entries(cache)) if (!v.d) out.set(Number(k), v);
   const local = readJSON<any[]>(ENGLISH.records, []);
   for (const r of Array.isArray(local) ? local : []) {
     if (!r || typeof r.ts !== 'number') continue;
     out.set(r.ts, { s: Number(r.stars) || 0, c: Number(r.correct) || 0, t: Number(r.total) || 0, u: r.ts });
   }
+  for (const ts of Object.keys(englishGone())) out.delete(Number(ts));
   return out;
 }
 
@@ -214,15 +221,15 @@ export function summary(now = Date.now()): Summary {
     hanjaEarned += r.s;
     if (ts >= today) todayHanja += r.t;
   }
+  const led = ledger();
+  const ledgerHint = led.filter(e => e.kind !== 'gift').reduce((a, e) => a + (e.amount || 0), 0);
+  const gifted = led.filter(e => e.kind === 'gift').reduce((a, e) => a + (e.amount || 0), 0);
+  const couponSpent = coupons().filter(c => !c.canceledAt).reduce((a, c) => a + (c.price || 0), 0);
   let englishEarned = 0, todayEnglish = 0;
   for (const [ts, r] of englishRows()) {
     englishEarned += r.s;
     if (ts >= today) todayEnglish += r.t;
   }
-  const led = ledger();
-  const ledgerHint = led.filter(e => e.kind !== 'gift').reduce((a, e) => a + (e.amount || 0), 0);
-  const gifted = led.filter(e => e.kind === 'gift').reduce((a, e) => a + (e.amount || 0), 0);
-  const couponSpent = coupons().filter(c => !c.canceledAt).reduce((a, c) => a + (c.price || 0), 0);
   const earned = mathEarned + hanjaEarned + englishEarned;
   const spent = mathHint + ledgerHint + couponSpent;
   return {
@@ -378,8 +385,21 @@ export function cancelCoupon(id: number): boolean {
 // ─────────────────────────────────────────────
 // 수학 에이스의 예전 소원 쿠폰 (별 50·150·250…에서 받은 것)
 // ─────────────────────────────────────────────
+/**
+ * 소원 쿠폰 발급을 멈춘 수학 에이스 배포 시각. 이보다 먼저 푼 기록으로 도달한 50·150·250… 쿠폰만 인정
+ * (수학 에이스 sync.ts의 wishFreezeMax와 같은 기준 — 에이스 홈에서도 바로 맞게 보이도록 여기서 한 번 더 거름)
+ */
+const WISH_STOP_AT = Date.parse('2026-10-12T20:46:00+09:00');
+function wishCap(): number {
+  let before = 0;
+  for (const [ts, r] of mathRows()) if (ts < WISH_STOP_AT) before += Math.floor(r.c / 5) - r.h;
+  let max = 0;
+  for (let m = 50; m <= before; m += 50) if (m % 100 !== 0) max = m;
+  return max;
+}
 export function mathWishCoupons(): number[] {
-  return readJSON<number[]>(MATH.wish, []).slice().sort((a, b) => a - b);
+  const cap = wishCap();
+  return readJSON<number[]>(MATH.wish, []).filter(v => v <= cap).slice().sort((a, b) => a - b);
 }
 /** 소원 쿠폰 사용 — 수학 에이스와 같은 방식(사용 목록에 추가)이라 수학 동기화로 다른 기기에도 반영됨 */
 export function useMathWish(value: number) {
@@ -474,10 +494,29 @@ export function childName(): string {
   return String(m?.childName || h?.childName || e?.childName || '').trim();
 }
 /** 허브 부모 PIN: 허브에서 정한 값 → 수학 PIN → 한자 PIN → 1234 */
+/**
+ * 에이스 홈 PIN — 별·쿠폰을 다루므로 과목 앱 PIN과 따로 둠 (기기 안에만 저장).
+ * 아직 없으면 '' → 처음 열 때 과목 앱 PIN으로 부모님인지 확인한 뒤 새로 만듦.
+ */
 export function hubPin(): string {
-  return localStorage.getItem(K.pin) || localStorage.getItem(MATH.pin) || localStorage.getItem(HANJA.pin) || '1234';
+  try { return localStorage.getItem(K.pin) || ''; } catch { return ''; }
 }
 export function setHubPin(pin: string) { localStorage.setItem(K.pin, pin); }
+/** 과목 앱 PIN들 (수학, 한자, 영어. 바꾸지 않았으면 1234) */
+export function subjectPins(): string[] {
+  const get = (k: string) => { try { return localStorage.getItem(k) || '1234'; } catch { return '1234'; } };
+  // 영어 PIN은 바꾼 경우에만 (영어 앱을 아직 안 쓴 기기에서 처음 PIN 1234가 다시 통하지 않게)
+  let en = '';
+  try { en = localStorage.getItem(ENGLISH.pin) || ''; } catch { /* 없음 */ }
+  return [...new Set([get(MATH.pin), get(HANJA.pin), ...(en ? [en] : [])])];
+}
+/** 새 에이스 홈 PIN으로 쓸 수 있는지. 안 되면 이유 */
+export function hubPinProblem(pin: string): string | null {
+  if (!/^\d{4}$/.test(pin)) return 'PIN은 숫자 4자리예요';
+  if (pin === '1234') return '처음 PIN(1234)은 쓸 수 없어요';
+  if (subjectPins().includes(pin)) return '수학·한자·영어 에이스 PIN과 다른 번호로 정해 주세요';
+  return null;
+}
 
 // ─────────────────────────────────────────────
 // 동기화용 변환 (aceSync.ts에서 사용)
@@ -499,6 +538,43 @@ export function hanjaRecordFor(ts: number): any | null {
   const local = readJSON<any[]>(HANJA.records, []);
   const r = Array.isArray(local) ? local.find(x => x && x.ts === ts) : null;
   return r ? { ...r, updatedAt: r.ts } : null;
+}
+
+/** 영어 기록 → 서버로 보낼 것 (별 계산에 필요한 것만. 지운 기록은 "지움" 표시로 덮어씀) */
+export function englishRecordFor(ts: number): any | null {
+  const gone = englishGone()[ts];
+  if (gone) return { ts, deleted: true, stars: 0, correct: 0, total: 0, updatedAt: gone };
+  const local = readJSON<any[]>(ENGLISH.records, []);
+  const r = Array.isArray(local) ? local.find(x => x && x.ts === ts) : null;
+  return r ? { ts: r.ts, date: r.date, menu: r.menu, stars: Number(r.stars) || 0, correct: Number(r.correct) || 0, total: Number(r.total) || 0, updatedAt: r.ts } : null;
+}
+export function applyServerEnglish(records: any[]) {
+  if (!records.length) return;
+  const cache = readJSON<Record<string, EnglishRow>>(K.cacheEnglish, {});
+  for (const r of records) {
+    if (!r || typeof r.ts !== 'number') continue;
+    const u = Number(r.updatedAt) || r.ts;
+    if (cache[r.ts] && cache[r.ts].u > u) continue;
+    cache[r.ts] = r.deleted ? { s: 0, c: 0, t: 0, u, d: true } : { s: Number(r.stars) || 0, c: Number(r.correct) || 0, t: Number(r.total) || 0, u };
+  }
+  writeJSON(K.cacheEnglish, cache);
+}
+/** 영어 앱 처음 한 번: 지금까지의 영어 기록을 서버로 올림 (다른 기기에서 별을 계산할 수 있게) */
+export function migrateEnglishRecords() {
+  if (localStorage.getItem(K.migratedEnglish)) return;
+  const recs = readJSON<any[]>(ENGLISH.records, []);
+  for (const r of Array.isArray(recs) ? recs : []) if (r && typeof r.ts === 'number') markDirty('english', r.ts);
+  localStorage.setItem(K.migratedEnglish, '1');
+}
+/** 영어 기록 지우기 (부모님 "기록 정리"): 이 기기에서 보이는 영어 기록 전부를 지운 것으로 표시하고 서버에도 알림 */
+export function forgetEnglishRecords() {
+  const gone = englishGone();
+  const now = Date.now();
+  const ids = new Set<number>(Object.keys(readJSON<Record<string, EnglishRow>>(K.cacheEnglish, {})).map(Number));
+  for (const r of readJSON<any[]>(ENGLISH.records, [])) if (r && typeof r.ts === 'number') ids.add(r.ts);
+  for (const ts of ids) if (!gone[ts]) { gone[ts] = now; markDirty('english', ts); }
+  writeJSON(K.englishGone, gone);
+  notifyWallet();
 }
 
 /** 서버에서 받은 지갑 기록 반영 (같은 번호는 나중에 고친 쪽이 이김, 축하는 합침) */

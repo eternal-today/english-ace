@@ -1,6 +1,6 @@
 /**
  * 에이스 시리즈 앱 주소
- * ※ src/ace 폴더는 허브·수학·한자 세 저장소에 똑같이 들어 있음. 고치면 세 곳에 같이 복사.
+ * ※ src/ace 폴더는 허브·수학·한자·영어 네 저장소에 똑같이 들어 있음. 고치면 네 곳에 같이 복사.
  * GitHub Pages에서는 지금 주소 기준, 내 컴퓨터에서 개발할 때는 실제 배포 주소로 보냄
  */
 const ORIGIN = typeof location !== 'undefined' && location.hostname.endsWith('github.io')
