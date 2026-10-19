@@ -1,0 +1,410 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  CheckCircle2, ChevronLeft, ChevronRight, Database, Gift, Hash, History, Home, Lightbulb, Lock,
+  Plus, Settings, Smartphone, Snail, Star, Volume2, XCircle,
+} from 'lucide-react';
+import { Config, RoundRecord } from '../types';
+import { MAX_COUNT, MIN_COUNT, actions, earnedStars, getState, useStore } from '../engine/store';
+import { HINT_COST, couponState, coupons as aceCoupons, mathWishCoupons, useWallet } from '../ace/wallet';
+import { goHome } from '../ace/links';
+import { STAGE_BY_ID, fmt, numWords } from '../engine/numbers';
+import { canSpeak, englishVoices, onVoicesChanged, setVoiceURI, speak } from '../engine/speech';
+import { dayIndex } from '../engine/srs';
+import { toast } from '../components/ui';
+import { sayNumberSlow } from '../components/NumberView';
+
+const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
+  <section className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${dim ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>{children}</section>
+);
+const Title = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="flex items-center gap-2 text-slate-900 font-bold">{icon}<h3>{children}</h3></div>
+);
+const Label = ({ children }: { children: React.ReactNode }) => <label className="text-xs font-bold text-slate-400 tracking-wider block">{children}</label>;
+const Stepper = ({ value, min, max, onChange, unit }: { value: number; min: number; max: number; onChange: (n: number) => void; unit: string }) => (
+  <div className="flex items-center gap-3">
+    <button className="w-11 h-11 rounded-xl border-2 border-slate-200 font-black text-slate-500 active:scale-90 disabled:opacity-30" disabled={value <= min} onClick={() => onChange(value - 1)}>−</button>
+    <span className="font-black text-slate-800 w-16 text-center">{value}{unit}</span>
+    <button className="w-11 h-11 rounded-xl border-2 border-slate-200 font-black text-slate-500 active:scale-90 disabled:opacity-30" disabled={value >= max} onClick={() => onChange(value + 1)}>+</button>
+  </div>
+);
+
+/** 소리 확인 — 기기의 영어 목소리 목록과 들어 보기 (시험 페이지 기능을 앱 안으로) */
+function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
+  const [voices, setVoices] = useState(englishVoices());
+  useEffect(() => {
+    const refresh = () => setVoices(englishVoices());
+    const off = onVoicesChanged(refresh);
+    const t = setTimeout(refresh, 800);
+    return () => { off(); clearTimeout(t); };
+  }, []);
+  const us = voices.filter(v => /en[-_]US/i.test(v.lang)).length;
+  // 들어 보기는 저장 전에도 고른 목소리로
+  const play = (fn: () => void) => { setVoiceURI(draft.voiceURI); fn(); setVoiceURI(getState().config.voiceURI); };
+  return (
+    <Card>
+      <Title icon={<Volume2 size={18} className="text-trust-600" />}>소리 확인</Title>
+      {!canSpeak() ? (
+        <p className="text-sm font-bold text-rose-600 bg-rose-50 rounded-xl p-3">이 브라우저는 음성 읽기를 지원하지 않아요. 크롬에서 열어 주세요.</p>
+      ) : voices.length === 0 ? (
+        <p className="text-sm font-bold text-rose-600 bg-rose-50 rounded-xl p-3 leading-relaxed">
+          영어 목소리를 찾지 못했어요. 안드로이드 설정 → 텍스트 음성 변환 → Google 음성 엔진 → 음성 데이터 설치에서 영어(미국)를 받아 주세요.
+          받은 뒤 이 화면을 다시 열면 목록이 나와요.
+        </p>
+      ) : (
+        <>
+          <div className="bg-trust-50 text-trust-700 text-sm font-bold rounded-xl px-4 py-3">영어 목소리 {voices.length}개 · 미국 {us}개</div>
+          <div className="space-y-2">
+            <Label>쓸 목소리</Label>
+            <select className="input-field bg-slate-50" value={draft.voiceURI} onChange={e => setDraft({ ...draft, voiceURI: e.target.value })}>
+              <option value="">자동 (미국 영어)</option>
+              {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang}){v.localService ? '' : ' · 온라인'}</option>)}
+            </select>
+          </div>
+        </>
+      )}
+      <div className="space-y-2">
+        <Label>들어 보기</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button className="btn-secondary py-3 text-sm" onClick={() => play(() => speak(numWords(1234567)))}><span className="en">{fmt(1234567)}</span></button>
+          <button className="btn-secondary py-3 text-sm flex items-center justify-center gap-1.5" onClick={() => play(() => sayNumberSlow(12345))}><Snail size={16} /><span className="en">{fmt(12345)}</span> 끊어 읽기</button>
+          <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('How are you?'))}>How are you?</button>
+          <button className="btn-secondary py-3 text-sm en" onClick={() => play(() => speak('a, apple'))}>a, apple</button>
+        </div>
+      </div>
+      <p className="text-[11px] text-slate-400 leading-relaxed">소리는 기기의 음성 엔진이 냅니다. 기기마다 목소리가 다를 수 있어 아이 태블릿에서 한 번 들어 보세요.</p>
+    </Card>
+  );
+}
+
+export default function Parent({ onHome }: { onHome: () => void }) {
+  const store = useStore();
+  const [tab, setTab] = useState<'settings' | 'chance' | 'records'>('settings');
+  const [draft, setDraft] = useState<Config>(store.config);
+  const [newPin, setNewPin] = useState('');
+  const [selected, setSelected] = useState<RoundRecord | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(store.config);
+  const save = () => {
+    if (!Object.values(draft.modes).some(Boolean)) { toast('문제 유형을 하나 이상 켜 주세요'); return; }
+    actions.saveConfig(draft);
+    toast('설정이 저장되었습니다!');
+  };
+
+  const wallet = useWallet();
+  const coupons = [...aceCoupons().filter(c => couponState(c) === 'active'), ...mathWishCoupons()];
+  const today = dayIndex();
+  const reviewCards = Object.entries(store.cards).filter(([, c]) => c.box < 5);
+  const dueNow = reviewCards.filter(([, c]) => c.due <= today).length;
+  const weak = Object.entries(store.cards).filter(([, v]) => v.wrong > 0).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
+
+  const exportBackup = () => {
+    const data: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)!;
+      if (k.startsWith('english_')) data[k] = localStorage.getItem(k) || '';
+    }
+    const blob = new Blob([JSON.stringify({ app: 'english-ace', at: Date.now(), data }, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `영어에이스_백업_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const importBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        if (parsed?.app !== 'english-ace' || !parsed.data) throw new Error('형식');
+        if (!window.confirm('이 기기의 영어 에이스 기록·설정을 백업 파일의 내용으로 바꿉니다.\n\n계속할까요?')) return;
+        Object.keys(localStorage).filter(k => k.startsWith('english_')).forEach(k => localStorage.removeItem(k));
+        for (const [k, v] of Object.entries(parsed.data as Record<string, string>)) {
+          if (k.startsWith('english_')) localStorage.setItem(k, v);
+        }
+        location.reload();
+      } catch { toast('영어 에이스 백업 파일이 아니에요'); }
+    };
+    reader.readAsText(file);
+  };
+
+  const stageName = (r: RoundRecord) => (r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${STAGE_BY_ID[r.stage]?.name || ''}`);
+
+  return (
+    <div className="min-h-[100dvh] bg-slate-50 pb-24">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={onHome} aria-label="아이 홈" className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Home size={20} className="text-slate-600" /></button>
+          <h2 className="font-bold text-slate-900">부모님 설정</h2>
+        </div>
+        <div className="bg-trust-100 text-trust-700 text-[10px] font-black px-2 py-1 rounded-md tracking-wider">ADMIN</div>
+      </header>
+
+      <nav className="bg-white border-b border-slate-200 px-6 flex gap-6 overflow-x-auto">
+        {([['settings', '학습 설정', <Settings size={16} />], ['chance', '찬스와 별', <Gift size={16} />], ['records', '학습 기록', <History size={16} />]] as const).map(([id, label, icon]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`shrink-0 py-4 text-sm font-bold transition-all border-b-2 ${tab === id ? 'border-trust-600 text-trust-600' : 'border-transparent text-slate-400'}`}>
+            <div className="flex items-center gap-2">{icon}{label}{id === 'chance' && coupons.length > 0 && <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{coupons.length}</span>}</div>
+          </button>
+        ))}
+      </nav>
+
+      <main className="p-6 max-w-2xl mx-auto">
+        {/* ══════════ 학습 설정 ══════════ */}
+        {tab === 'settings' && (
+          <div className="space-y-6 animate-slide-up">
+            <Card>
+              <Title icon={<Settings size={18} className="text-trust-600" />}>문제 설정</Title>
+              <div className="space-y-3">
+                <Label>한 판의 문제 수 ({draft.count}문제)</Label>
+                <input type="range" min={MIN_COUNT} max={MAX_COUNT} step={5} value={draft.count}
+                  onChange={e => setDraft({ ...draft, count: parseInt(e.target.value) })} className="w-full accent-trust-600" />
+                <div className="flex justify-between text-[10px] font-bold text-slate-300"><span>5문제</span><span>15문제</span><span>30문제</span></div>
+              </div>
+              <div className="space-y-3">
+                <Label>난이도</Label>
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  {[1, 2, 3].map(d => (
+                    <button key={d} onClick={() => setDraft({ ...draft, difficulty: d })}
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${draft.difficulty === d ? 'bg-white text-trust-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                      {d === 1 ? '쉬움' : d === 2 ? '보통' : '어려움'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {draft.difficulty === 1 ? '보기 3개 가운데 고릅니다. 틀린 보기는 소리가 확연히 다른 것으로 나옵니다.'
+                    : draft.difficulty === 2 ? '보기 4개 가운데 고릅니다. 13과 30, 325와 352처럼 헷갈리는 보기를 2개쯤 섞습니다.'
+                      : '보기 4개가 모두 헷갈리는 것으로 나옵니다.'}
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Label>한 판에 새로 나오는 것</Label>
+                <Stepper value={draft.newPerRound} min={0} max={10} unit="개" onChange={n => setDraft({ ...draft, newPerRound: n })} />
+                <p className="text-[11px] text-slate-400 leading-relaxed">오늘의 한 마디, 주제 여행, 소리 탐정에서 새 표현·단어·글자 소리를 몇 개씩 낼지 정합니다. 숫자 영어는 판마다 새 숫자를 만들고, 틀린 숫자를 다시 냅니다.</p>
+              </div>
+              <div className="space-y-3">
+                <Label>숫자 영어에 섞을 문제 유형</Label>
+                <div className="grid gap-2">
+                  {([['listen', '듣고 고르기', '영어 소리를 듣고 숫자 고르기'], ['say', '소리 고르기', '숫자를 보고 맞게 읽은 소리 고르기 (보기를 눌러 들어 봄)'],
+                    ['place', '붙는 말 고르기', '색칠한 자리 뒤에 thousand · hundred가 붙는지 고르기 (100 이상에서만)']] as const).map(([k, label, desc]) => (
+                    <button key={k} onClick={() => setDraft({ ...draft, modes: { ...draft.modes, [k]: !draft.modes[k] } })}
+                      className={`text-left px-4 py-3 rounded-xl border-2 flex items-center justify-between gap-3 ${draft.modes[k] ? 'border-trust-200 bg-trust-50' : 'border-slate-100 bg-white'}`}>
+                      <span>
+                        <span className={`text-sm font-bold ${draft.modes[k] ? 'text-trust-700' : 'text-slate-400'}`}>{label}</span>
+                        <span className="block text-[11px] text-slate-400">{desc}</span>
+                      </span>
+                      <span className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${draft.modes[k] ? 'bg-trust-600' : 'bg-slate-200'}`}>
+                        <span className={`block w-5 h-5 bg-white rounded-full transition-transform ${draft.modes[k] ? 'translate-x-5' : ''}`} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <Title icon={<Hash size={18} className="text-trust-600" />}>숫자 영어 단계</Title>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                처음에는 1~100 확인 문제 10개를 풀고, 다 맞히면 100 ~ 999와 1,000 ~ 9,999가 열립니다.
+                1만 이상은 "쉼표에서 끊어 읽기" 개념 정리를 보면 열리게 할 예정입니다 (2차).
+              </p>
+              <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-4 py-3">
+                <span className="text-sm font-bold text-slate-700">{store.progress.numCheck ? '✅ 큰 숫자가 열려 있어요' : '🔒 1~100 확인 전이에요'}</span>
+                <button className="btn-secondary px-4 py-2 text-sm" onClick={() => {
+                  actions.setProgress({ numCheck: !store.progress.numCheck });
+                  toast(store.progress.numCheck ? '다시 잠갔어요' : '확인 없이 큰 숫자를 열었어요');
+                }}>{store.progress.numCheck ? '다시 잠그기' : '확인 없이 열기'}</button>
+              </div>
+            </Card>
+
+            <VoiceCard draft={draft} setDraft={setDraft} />
+
+            <Card>
+              <Title icon={<Lightbulb size={18} className="text-amber-500" />}>힌트</Title>
+              <div className="space-y-2 text-sm text-slate-500 leading-relaxed">
+                <p><strong className="text-slate-700">천천히 듣기</strong>는 몇 번이든 무료입니다. 덩어리로 끊어 읽고, 읽는 자리를 색으로 보여 줍니다.</p>
+                <p><strong className="text-slate-700">보기 지우기</strong>는 무료가 없고, 한 번에 별 {HINT_COST}개를 씁니다.</p>
+                <p className="text-[11px] text-slate-400">힌트를 보고 맞힌 문제는 별은 그대로 받지만, 몰랐던 것으로 보고 다시 복습에 나옵니다.</p>
+              </div>
+            </Card>
+
+            <Card>
+              <Title icon={<Star size={18} className="text-amber-400" />}>아이 이름</Title>
+              <input type="text" className="input-field bg-slate-50" placeholder="예: 지민" maxLength={10}
+                value={draft.childName || ''} onChange={e => setDraft({ ...draft, childName: e.target.value })} />
+              <p className="text-[11px] text-slate-400">인사와 칭찬에서 아이 이름을 불러 줘요. (선택)</p>
+            </Card>
+
+            <div>
+              <button className={`btn-primary w-full py-4 text-lg bg-trust-600 hover:bg-trust-700 shadow-trust-100 ${dirty ? '' : 'opacity-60'}`} onClick={save}>
+                {dirty ? '바뀐 설정 저장하기' : '모든 설정 저장하기'}
+              </button>
+            </div>
+
+            <div className="pt-10 border-t-2 border-dashed border-slate-200 space-y-6">
+              <div className="flex items-center justify-center gap-2">
+                <div className="h-px bg-slate-200 flex-1" />
+                <div className="text-[10px] font-black text-slate-300 tracking-[0.3em] whitespace-nowrap">SYSTEM</div>
+                <div className="h-px bg-slate-200 flex-1" />
+              </div>
+
+              <Card dim>
+                <Title icon={<Lock size={18} className="text-slate-400" />}>보안 설정</Title>
+                <Label>새 PIN 번호 (4자리)</Label>
+                <div className="flex gap-2">
+                  <input type="password" inputMode="numeric" maxLength={4} className="input-field flex-1 bg-slate-50" placeholder="****"
+                    value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))} />
+                  <button className="btn-secondary px-6" onClick={() => {
+                    if (newPin.length !== 4) { toast('PIN 번호는 4자리여야 합니다.'); return; }
+                    actions.setPin(newPin); setNewPin(''); toast('PIN 번호가 변경되었습니다!');
+                  }}>변경</button>
+                </div>
+                <p className="text-[11px] text-slate-400">처음 PIN은 1234입니다. 수학·한자 에이스의 PIN과는 따로 저장됩니다.</p>
+              </Card>
+
+              <Card dim>
+                <Title icon={<Database size={18} className="text-slate-400" />}>기록 백업</Title>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  영어 기록과 설정은 아직 이 기기에만 저장됩니다 (다른 기기와 맞추는 동기화는 별·허브 연동 때 붙입니다). 기기를 바꾸기 전에 백업 파일로 내려받아 두세요.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="btn-secondary py-3 text-sm" onClick={exportBackup}>백업 파일 받기</button>
+                  <button className="btn-secondary py-3 text-sm" onClick={() => fileRef.current?.click()}>백업 파일 불러오기</button>
+                </div>
+                <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importBackup} />
+              </Card>
+
+              <Card dim>
+                <Title icon={<Smartphone size={18} className="text-slate-400" />}>홈 화면에 추가하기</Title>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  브라우저 메뉴에서 <strong>'홈 화면에 추가'</strong>를 누르면 앱처럼 아이콘으로 바로 실행할 수 있습니다.
+                </p>
+                <div className="flex gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="w-10 h-10 bg-trust-600 rounded-lg flex items-center justify-center text-white shrink-0 shadow-sm"><Plus size={20} /></div>
+                  <div className="text-[11px] text-slate-400 leading-tight flex items-center">
+                    아이폰: 공유 버튼 → 홈 화면에 추가<br />안드로이드: 메뉴 버튼 → 앱 설치 또는 홈 화면에 추가
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ 찬스와 별 (에이스 홈에서) ══════════ */}
+        {tab === 'chance' && (
+          <div className="space-y-6 animate-slide-up">
+            <div className="grid grid-cols-3 gap-3">
+              {[['남은 별 (합산)', wallet.balance, 'text-amber-600'], ['영어에서 번 별', earnedStars(store), 'text-emerald-600'], ['쓴 별 (합산)', wallet.spent, 'text-slate-600']].map(([label, n, color]) => (
+                <div key={label as string} className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
+                  <div className={`text-2xl font-black font-display ${color}`}>{n as number}</div>
+                  <div className="text-[11px] font-bold text-slate-400 mt-1">{label as string}</div>
+                </div>
+              ))}
+            </div>
+            <Card>
+              <Title icon={<Gift size={18} className="text-trust-600" />}>찬스와 쿠폰은 에이스 홈에서</Title>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                별은 모든 과목이 함께 쓰는 지갑 하나예요. 찬스 가게, 쿠폰 사용 처리, 별 장부는 에이스 홈의 부모님 모드에서 해요.
+              </p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                지금은 영어 에이스 화면에서만 영어 별이 합산에 들어갑니다. 에이스 홈·수학·한자 화면에도 영어 별이 보이도록 하는 작업은 별·허브 연동 단계에서 합니다.
+              </p>
+              {coupons.length > 0 && <p className="text-sm font-bold text-amber-600">사용을 기다리는 쿠폰 {coupons.length}장</p>}
+              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => goHome()}>
+                <Star size={16} className="text-amber-500 fill-amber-500" />에이스 홈 열기
+              </button>
+            </Card>
+          </div>
+        )}
+
+        {/* ══════════ 학습 기록 ══════════ */}
+        {tab === 'records' && (
+          <div className="space-y-4 animate-slide-up">
+            {selected ? (
+              <div className="space-y-6">
+                <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-trust-600 font-bold hover:underline">
+                  <ChevronLeft size={20} />목록으로 돌아가기
+                </button>
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-black text-slate-900">{stageName(selected)}</h3>
+                      <p className="text-sm text-slate-400">{selected.date}</p>
+                      <p className="text-xs text-slate-400 mt-1">번 별 {selected.stars}개 · 별로 본 힌트 {selected.hintsPaid}번</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-3xl font-black text-trust-600">{selected.correct} / {selected.total}</div>
+                      <div className="text-[10px] font-bold text-slate-400 tracking-widest">SCORE</div>
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    {selected.items.map((it, i) => (
+                      <div key={i} className={`p-3 rounded-2xl border flex justify-between items-center gap-3 ${it.ok ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-xs font-bold text-slate-400 w-5 shrink-0">{i + 1}</span>
+                          <span className="min-w-0">
+                            <span className="font-bold text-slate-700 block truncate">{it.ans}</span>
+                            <span className="text-[11px] text-slate-400 block truncate">{it.q}{it.hint ? ' · 힌트 봄' : ''}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {!it.ok && <span className="text-sm font-black text-rose-600">답: {it.val || '-'}</span>}
+                          {it.ok ? <CheckCircle2 size={20} className="text-emerald-500" /> : <XCircle size={20} className="text-rose-500" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900">다시 만날 숫자 {reviewCards.length}개</h3>
+                    <span className="text-xs font-bold text-trust-600">오늘 복습 차례 {dueNow}개</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">틀렸거나 힌트를 보고 맞힌 숫자는 기억 상자에 들어가 다시 나옵니다. 처음부터 맞힌 숫자는 따로 모으지 않습니다.</p>
+                  {weak.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {weak.map(([id, v]) => (
+                        <button key={id} onClick={() => speak(numWords(Number(id.split(':')[1])))} className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 text-left">
+                          <span className="en text-xl text-slate-800">{fmt(Number(id.split(':')[1]))}</span>
+                          <span className="block text-[10px] font-bold text-rose-500">{v.wrong}번 틀림</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {store.records.length === 0 ? (
+                  <div className="text-center py-16">
+                    <History size={48} className="mx-auto text-slate-200 mb-4" />
+                    <p className="text-slate-400 font-medium">아직 학습 기록이 없습니다.</p>
+                  </div>
+                ) : store.records.map(r => (
+                  <button key={r.ts} onClick={() => setSelected(r)}
+                    className="w-full text-left bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4 group hover:border-trust-300 transition-all active:scale-[0.98]">
+                    <div className="space-y-1 min-w-0">
+                      <div className="font-bold text-slate-900">{stageName(r)} <span className="text-xs font-bold text-amber-500">★ +{r.stars}</span></div>
+                      <div className="text-xs text-slate-400 truncate">{r.date}</div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <div className="text-2xl font-black text-trust-600 font-display">{r.correct} / {r.total}</div>
+                        <div className="text-[10px] font-bold text-slate-400 tracking-widest">SCORE</div>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-300 group-hover:text-trust-500" />
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
