@@ -43,6 +43,8 @@ export function onVoicesChanged(fn: () => void) {
  * - 글자 하나(a, I)는 관사로 보고 건너뛰는 엔진이 있어 대문자로 따로 읽게 함 ("a, apple" → "A. apple")
  */
 function tidy(text: string): string {
+  // "Hi"만 단독으로 있으면 소리를 내지 않는 엔진이 있음 (아이 태블릿 확인: Hi!, Hi., Hi 모두 무음, Hai!는 정상)
+  if (/^hi\s*[!.?]?$/i.test(text.trim())) return 'Hai!';
   return text.replace(/^([a-z])\s*,\s*/i, (_, l) => `${l.toUpperCase()}. `);
 }
 

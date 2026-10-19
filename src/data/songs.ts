@@ -78,6 +78,9 @@ export const SONG_BY_ID = Object.fromEntries(SONGS.map(s => [s.id, s])) as Recor
 export const WORDS: Record<string, SongWord> = {};
 for (const s of SONGS) for (const w of s.words) WORDS[w.id] = { ...WORDS[w.id], ...w, sound: WORDS[w.id]?.sound || w.sound };
 
-/** 가사 빈칸을 소리로 읽을 때: 빈칸 자리는 잠깐 쉼 */
-export const lyricSpoken = (text: string) => text.replace(/___[.,]?/, '...');
+/**
+ * 가사 빈칸을 소리로 읽을 때: 빈칸 자리는 "hmm"으로 읽음.
+ * "had a ..."처럼 a로 끝나면 기기 음성이 a를 글자 이름("에이")으로 읽어서, 뒤에 말을 하나 붙여 관사로 읽히게 함.
+ */
+export const lyricSpoken = (text: string) => text.replace(/___/, 'hmm');
 export const lyricFilled = (l: LyricLine) => l.text.replace('___', WORDS[l.answer].word);
