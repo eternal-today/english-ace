@@ -88,3 +88,9 @@ export function speakParts(parts: string[], onPart?: (i: number) => void, gapMs 
   };
   next(0);
 }
+
+/** 문장 끊어 듣기: 쉼표·물음표 등을 떼고 단어 하나씩 읽음 */
+export function speakWords(text: string, onPart?: (i: number) => void) {
+  const words = text.split(/\s+/).map(w => w.replace(/[,.!?]+$/g, '')).filter(Boolean);
+  speakParts(words, onPart, 350);
+}

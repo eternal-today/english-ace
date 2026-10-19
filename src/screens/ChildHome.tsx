@@ -15,18 +15,21 @@ interface Props {
   onMenu: (m: MenuId) => void;
   onResume: () => void;
   onRewards: () => void;
+  onDogam: () => void;
 }
 
 const MENUS: { id: MenuId; label: string; sub: string; icon: React.ReactNode; ready: boolean }[] = [
   { id: 'numbers', label: '숫자 영어', sub: '큰 숫자도 척척', icon: <span className="en text-3xl leading-none">123</span>, ready: true },
-  { id: 'phrases', label: '오늘의 한 마디', sub: '곧 열려요', icon: <MessageCircle size={28} />, ready: false },
+  { id: 'phrases', label: '오늘의 한 마디', sub: '엉뚱한 대답 찾기', icon: <MessageCircle size={28} />, ready: true },
   { id: 'songs', label: '주제 여행', sub: '곧 열려요', icon: <Music size={28} />, ready: false },
   { id: 'phonics', label: '소리 탐정', sub: '곧 열려요', icon: <Search size={28} />, ready: false },
   { id: 'alphabet', label: '알파벳 따라 쓰기', sub: '나중에 열려요', icon: <PenLine size={28} />, ready: false },
 ];
 
-export default function ChildHome({ onParent, onMenu, onResume, onRewards }: Props) {
-  const { config } = useStore();
+export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDogam }: Props) {
+  const { config, cards, heard } = useStore();
+  const metPhrases = Object.keys(cards).filter(k => k.startsWith('ph:')).length;
+  const heardCount = Object.keys(heard).length;
   const balance = useWallet().balance;
   const name = config.childName?.trim();
   const saved = loadRound();
@@ -77,7 +80,7 @@ export default function ChildHome({ onParent, onMenu, onResume, onRewards }: Pro
               <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shrink-0"><PlayCircle size={26} /></div>
               <div className="flex-1 min-w-0">
                 <div className="font-black text-emerald-800">이어서 풀기</div>
-                <div className="text-xs font-bold text-emerald-600">{saved.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${STAGE_BY_ID[saved.stage].name}`} · {saved.questions.length}문제 중 {Math.min(saved.items.length + 1, saved.questions.length)}번 문제부터</div>
+                <div className="text-xs font-bold text-emerald-600">{saved.menu === 'phrases' ? '오늘의 한 마디' : saved.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${STAGE_BY_ID[saved.stage].name}`} · {(saved.pquestions || saved.questions).length}문제 중 {Math.min(saved.items.length + 1, (saved.pquestions || saved.questions).length)}번 문제부터</div>
               </div>
               <ChevronRight size={18} className="text-emerald-400 shrink-0" />
             </motion.button>
@@ -98,10 +101,13 @@ export default function ChildHome({ onParent, onMenu, onResume, onRewards }: Pro
         </div>
 
         <div className="space-y-4">
-          <div className="w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-2 text-left">
-            <span className="font-black text-slate-800 flex items-center gap-2"><BookOpen size={18} className="text-brand-500" />영어 도감</span>
-            <p className="text-xs font-bold text-slate-400">오늘의 한 마디와 소리 탐정이 열리면 표현 도감과 소리 도감이 생겨요.</p>
-          </div>
+          <button onClick={onDogam} className="w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-2 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-slate-800 flex items-center gap-2"><BookOpen size={18} className="text-brand-500" />표현 도감</span>
+              <span className="text-xs font-bold text-brand-500 flex items-center">펼쳐 보기<ChevronRight size={14} /></span>
+            </div>
+            <p className="text-xs font-bold text-slate-400">만난 표현 {metPhrases}개{heardCount ? ` · 들었어요 도장 ${heardCount}개` : ''} · 소리 도감은 소리 탐정이 열리면 생겨요</p>
+          </button>
 
           {/* 내 보상 · 찬스 바꾸기 · 명예의 전당 (모든 에이스 같은 모양) */}
           <AceRewardCards subject="english" badges={BADGES} onOpen={onRewards} />

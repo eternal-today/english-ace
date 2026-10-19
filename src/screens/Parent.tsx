@@ -12,6 +12,9 @@ import { canSpeak, englishVoices, onVoicesChanged, setVoiceURI, speak } from '..
 import { dayIndex } from '../engine/srs';
 import { toast } from '../components/ui';
 import { sayNumberSlow } from '../components/NumberView';
+import { MessageCircle, Stamp, Trash2 } from 'lucide-react';
+import { PhraseItem } from '../data/phrases';
+import { allItems, fillOf, levelProgress, resolve } from '../engine/phrases';
 
 const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
   <section className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${dim ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>{children}</section>
@@ -76,6 +79,90 @@ function VoiceCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =
   );
 }
 
+/** 오늘의 한 마디 — 단계 진행, 표현 추가, 들었어요 도장 (바로 저장됨) */
+function PhraseCard() {
+  const { config, cards, custom, heard } = useStore();
+  const f = fillOf(config);
+  const prog = levelProgress(cards, f);
+  const [ko, setKo] = useState('');
+  const [say, setSay] = useState('');
+  const [emoji, setEmoji] = useState('');
+  const [answers, setAnswers] = useState('');
+  const lines = answers.split('\n').map(a => a.trim()).filter(Boolean);
+  const met = allItems(custom).filter(p => cards['ph:' + p.id]).map(p => resolve(p, f)).filter((p): p is PhraseItem => !!p);
+  const add = () => {
+    if (!ko.trim()) { toast('어떤 상황인지 한국어로 적어 주세요'); return; }
+    if (lines.length < 2) { toast('대답을 두 줄 이상 적어 주세요 (한 줄에 하나)'); return; }
+    const item: PhraseItem = {
+      id: 'cu-' + Date.now(), level: 1, group: '우리 집 표현', custom: true,
+      ...(say.trim() ? { say: say.trim() } : {}),
+      scene: { emoji: emoji.trim() || '💬', ko: ko.trim() },
+      answers: lines.slice(0, 6), oddEasy: [], oddNormal: [],
+    };
+    actions.addCustom(item);
+    setKo(''); setSay(''); setEmoji(''); setAnswers('');
+    toast('표현을 넣었어요. 다음 판부터 새 표현으로 나와요');
+  };
+  return (
+    <Card>
+      <Title icon={<MessageCircle size={18} className="text-trust-600" />}>오늘의 한 마디</Title>
+      <div className="grid grid-cols-2 gap-2">
+        {prog.map(p => (
+          <div key={p.level} className="bg-slate-50 rounded-xl px-4 py-3">
+            <div className="text-xs font-bold text-slate-400">{p.level}단계</div>
+            <div className="text-sm font-black text-slate-700">익힘 {p.learned} · 만남 {p.met} / {p.total}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-400 leading-relaxed">한 단계 표현의 80%가 기억 상자 3칸 이상이 되면 다음 단계가 저절로 열립니다. 2단계의 "What's your name?"과 "How old are you?"는 아래 아이 이름(영어)과 나이를 넣어야 나옵니다.</p>
+
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+        <Label>유치원에서 배운 표현 넣기</Label>
+        <input className="input-field bg-slate-50" placeholder="상황 (예: 놀이터에서 친구를 만났을 때)" value={ko} onChange={e => setKo(e.target.value)} maxLength={30} />
+        <div className="grid grid-cols-[1fr_5rem] gap-2">
+          <input className="input-field bg-slate-50" placeholder="상대가 하는 말 (선택, 예: Let's be friends!)" value={say} onChange={e => setSay(e.target.value)} maxLength={60} />
+          <input className="input-field bg-slate-50 text-center" placeholder="🙂" value={emoji} onChange={e => setEmoji(e.target.value)} maxLength={4} />
+        </div>
+        <textarea className="input-field bg-slate-50 min-h-[6rem]" placeholder={'어울리는 대답 (한 줄에 하나, 두 개 이상)\nOkay!\nSure!'} value={answers} onChange={e => setAnswers(e.target.value)} />
+        {(say.trim() || lines.length > 0) && (
+          <div className="flex flex-wrap gap-1.5">
+            {[say.trim(), ...lines].filter(Boolean).map((t, i) => (
+              <button key={i} onClick={() => speak(t)} className="bg-trust-50 text-trust-700 rounded-lg px-2.5 py-1 text-xs font-bold flex items-center gap-1"><Volume2 size={12} />{t}</button>
+            ))}
+          </div>
+        )}
+        <p className="text-[11px] text-slate-400">넣기 전에 눌러서 소리가 자연스러운지 들어 보세요. 엉뚱한 대답은 기본 표현에서 자동으로 고릅니다.</p>
+        <button className="btn-secondary w-full py-3" onClick={add}>표현 넣기</button>
+        {custom.length > 0 && (
+          <div className="grid gap-1.5">
+            {custom.map(p => (
+              <div key={p.id} className="flex items-center justify-between gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                <span className="text-sm font-bold text-slate-600 min-w-0 truncate">{p.scene?.emoji} {p.scene?.ko}{p.say ? ` · ${p.say}` : ''} <span className="text-slate-400">({p.answers.length}개)</span></span>
+                <button aria-label="빼기" className="text-slate-300 hover:text-rose-500 shrink-0" onClick={() => { if (window.confirm('이 표현을 뺄까요?')) actions.removeCustom(p.id); }}><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+        <Label>"들었어요!" 도장</Label>
+        <p className="text-[11px] text-slate-400">아이가 영상이나 생활에서 아는 표현을 들었다고 하면 눌러 주세요. 표현 도감에 도장이 찍힙니다. 별은 붙지 않습니다.</p>
+        {met.length === 0 ? <p className="text-sm text-slate-400">아직 만난 표현이 없어요.</p> : (
+          <div className="flex flex-wrap gap-1.5">
+            {met.map(p => (
+              <button key={p.id} onClick={() => actions.toggleHeard(p.id)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold border-2 flex items-center gap-1 ${heard[p.id] ? 'bg-rose-50 border-rose-300 text-rose-600' : 'bg-white border-slate-200 text-slate-500'}`}>
+                {heard[p.id] && <Stamp size={12} />}{p.scene?.emoji} {p.say || p.scene?.ko}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function Parent({ onHome }: { onHome: () => void }) {
   const store = useStore();
   const [tab, setTab] = useState<'settings' | 'chance' | 'records'>('settings');
@@ -94,9 +181,9 @@ export default function Parent({ onHome }: { onHome: () => void }) {
   const wallet = useWallet();
   const coupons = [...aceCoupons().filter(c => couponState(c) === 'active'), ...mathWishCoupons()];
   const today = dayIndex();
-  const reviewCards = Object.entries(store.cards).filter(([, c]) => c.box < 5);
+  const reviewCards = Object.entries(store.cards).filter(([id, c]) => c.box < 5 && !id.startsWith('ph:'));
   const dueNow = reviewCards.filter(([, c]) => c.due <= today).length;
-  const weak = Object.entries(store.cards).filter(([, v]) => v.wrong > 0).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
+  const weak = Object.entries(store.cards).filter(([id, v]) => v.wrong > 0 && !id.startsWith('ph:')).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
 
   const exportBackup = () => {
     const data: Record<string, string> = {};
@@ -131,7 +218,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
     reader.readAsText(file);
   };
 
-  const stageName = (r: RoundRecord) => (r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${STAGE_BY_ID[r.stage]?.name || ''}`);
+  const stageName = (r: RoundRecord) => (r.menu === 'phrases' ? '오늘의 한 마디' : r.kind === 'check' ? '1 ~ 100 확인' : `숫자 영어 ${r.stage ? STAGE_BY_ID[r.stage].name : ''}`);
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24">
@@ -220,6 +307,8 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               </div>
             </Card>
 
+            <PhraseCard />
+
             <Card>
               <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>
               <p className="text-sm text-slate-500 leading-relaxed">
@@ -247,6 +336,19 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               <input type="text" className="input-field bg-slate-50" placeholder="예: 지민" maxLength={10}
                 value={draft.childName || ''} onChange={e => setDraft({ ...draft, childName: e.target.value })} />
               <p className="text-[11px] text-slate-400">인사와 칭찬에서 아이 이름을 불러 줘요. (선택)</p>
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                <div className="space-y-2">
+                  <Label>영어로 쓴 이름 (예: Jimin)</Label>
+                  <input type="text" className="input-field bg-slate-50 en" placeholder="Jimin" maxLength={16}
+                    value={draft.childNameEn || ''} onChange={e => setDraft({ ...draft, childNameEn: e.target.value.replace(/[^A-Za-z \-']/g, '') })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>나이</Label>
+                  <Stepper value={draft.childAge || 0} min={0} max={12} unit="살" onChange={n => setDraft({ ...draft, childAge: n })} />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">오늘의 한 마디의 "What's your name?", "How old are you?" 대답에 씁니다. 한글 이름은 영어 목소리가 읽지 못해서 영어로 따로 받습니다. 비워 두면 그 문제는 나오지 않아요.</p>
+              {draft.childNameEn && <button className="btn-secondary px-4 py-2 text-sm flex items-center gap-1.5" onClick={() => speak(`My name is ${draft.childNameEn}.`)}><Volume2 size={14} />My name is {draft.childNameEn}.</button>}
             </Card>
 
             <div>

@@ -12,11 +12,13 @@ import NumberMenu from './screens/NumberMenu';
 import Concept from './screens/Concept';
 import Play from './screens/Play';
 import Parent from './screens/Parent';
+import PhrasePlay from './screens/PhrasePlay';
+import { PhraseDogam, PhraseHome } from './screens/PhraseHome';
 import { CONCEPT_BY_STAGE } from './engine/concepts';
 import { SavedRound, loadRound } from './engine/resume';
 import { stopSpeak } from './engine/speech';
 
-type ChildView = 'home' | 'numbers' | 'concept' | 'play';
+type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay';
 
 // 첫 화면 그리기 전에: 축하 목록 준비 (처음이면 지금까지의 마일스톤을 조용히 "축하 완료"로)
 initCelebration();
@@ -42,15 +44,15 @@ export default function App() {
     const onPop = () => {
       guard.current = false;
       const cur = nav.current;
-      if (cur.screen === 'child' && cur.view === 'play') {
+      if (cur.screen === 'child' && (cur.view === 'play' || cur.view === 'phrasePlay')) {
         history.pushState({ english: 1 }, '');
         guard.current = true;
-        if (playBackRef.current) playBackRef.current(); else setView('numbers');
+        if (playBackRef.current) playBackRef.current(); else setView(cur.view === 'phrasePlay' ? 'phrases' : 'numbers');
         return;
       }
       if (cur.screen === 'child' && cur.view === 'home') return;
-      if (cur.screen === 'child' && cur.view === 'concept') {
-        history.pushState({ english: 1 }, ''); guard.current = true; stopSpeak(); setView('numbers'); return;
+      if (cur.screen === 'child' && (cur.view === 'concept' || cur.view === 'phraseDogam')) {
+        history.pushState({ english: 1 }, ''); guard.current = true; stopSpeak(); setView(cur.view === 'concept' ? 'numbers' : 'phrases'); return;
       }
       stopSpeak();
       setScreen('child'); setView('home');
@@ -74,9 +76,12 @@ export default function App() {
   const resumeRound = () => {
     const saved = loadRound();
     if (!saved) { setView('home'); return; }
-    setResume(saved); setStage(saved.stage); setKind(saved.kind); setRoundKey(n => n + 1); setView('play');
+    setResume(saved); setRoundKey(n => n + 1);
+    if (saved.menu === 'phrases') { setView('phrasePlay'); return; }
+    setStage(saved.stage); setKind(saved.kind); setView('play');
   };
-  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); };
+  const startPhrases = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phrasePlay'); };
+  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 selection:bg-brand-100 selection:text-brand-900">
@@ -98,10 +103,18 @@ export default function App() {
                 <button className="bg-white/15 rounded-lg px-3 py-1 text-xs font-black" onClick={() => { actions.setPreview(false); setView('home'); }}>체험 끝내기</button>
               </div>
             )}
-            {view === 'home' && <ChildHome onParent={() => askPin('', () => setScreen('parent'))} onMenu={openMenu} onResume={resumeRound} onRewards={() => setRewardsOpen(true)} />}
+            {view === 'home' && <ChildHome onParent={() => askPin('', () => setScreen('parent'))} onMenu={openMenu} onResume={resumeRound} onRewards={() => setRewardsOpen(true)} onDogam={() => setView('phraseDogam')} />}
             {view === 'numbers' && <NumberMenu onBack={() => setView('home')} onStart={start} onConcept={st => { setStage(st); setView('concept'); }} />}
             {view === 'concept' && (
               <Concept key={stage} note={CONCEPT_BY_STAGE[stage]} onBack={() => { stopSpeak(); setView('numbers'); }} onPlay={() => start(stage, 'play')} />
+            )}
+            {view === 'phrases' && <PhraseHome onBack={() => setView('home')} onStart={startPhrases} onDogam={() => setView('phraseDogam')} />}
+            {view === 'phraseDogam' && <PhraseDogam onBack={() => { stopSpeak(); setView('phrases'); }} />}
+            {view === 'phrasePlay' && (
+              <PhrasePlay key={roundKey} resume={resume} backRef={playBackRef}
+                onExit={() => setView('phrases')} onAgain={startPhrases}
+                onMilestone={m => { setMilestone(m); fireConfetti(m.hall ? 'epic' : m.value % 50 === 0 ? 'big' : 'normal'); }}
+                onOpenShop={() => setRewardsOpen(true)} />
             )}
             {view === 'play' && (
               <Play key={roundKey} stage={stage} kind={kind} resume={resume} backRef={playBackRef}

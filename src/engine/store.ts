@@ -9,11 +9,12 @@
  */
 import { useSyncExternalStore } from 'react';
 import { Card, Config, Progress, RoundRecord } from '../types';
+import { PhraseItem } from '../data/phrases';
 import { notifyWallet, spendHint, takeCelebration } from '../ace/wallet';
 import { setVoiceURI } from './speech';
 
 const P = 'english_';
-const K = { config: P + 'config', cards: P + 'cards', records: P + 'records', progress: P + 'progress', pin: P + 'parent_pin' };
+const K = { config: P + 'config', cards: P + 'cards', records: P + 'records', progress: P + 'progress', pin: P + 'parent_pin', custom: P + 'custom_phrases', heard: P + 'heard' };
 
 export const BADGES = [
   { id: 'b10', need: 10, iconName: 'Sprout', name: '새싹 영어꾼' },
@@ -40,7 +41,7 @@ function defaultConfig(): Config {
   return {
     count: 10, difficulty: 1, newPerRound: 3,
     modes: { listen: true, say: true, place: true },
-    childName: name, voiceURI: '',
+    childName: name, childNameEn: '', childAge: 0, voiceURI: '',
   };
 }
 
@@ -51,6 +52,8 @@ export interface State {
   cards: Record<string, Card>;
   records: RoundRecord[];     // 최근 것이 앞
   progress: Progress;
+  custom: PhraseItem[];             // 부모님이 넣은 표현
+  heard: Record<string, number>;    // "들었어요!" 도장 (상황 id → 찍은 시각)
   pin: string;
 }
 
@@ -66,13 +69,15 @@ function load(): State {
   const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) } };
   config.count = Math.min(MAX_COUNT, Math.max(MIN_COUNT, config.count || 10));
   setVoiceURI(config.voiceURI);
-  const progress = read<Progress>(K.progress, { numCheck: false, concepts: [] });
+  const progress = read<Progress>(K.progress, { numCheck: false, concepts: [], phraseLevel: 1 });
   return {
     preview: readPreview(),
     config,
     cards: read(K.cards, {}),
     records: read<RoundRecord[]>(K.records, []),
-    progress: { numCheck: !!progress.numCheck, concepts: Array.isArray(progress.concepts) ? progress.concepts : [] },
+    progress: { numCheck: !!progress.numCheck, concepts: Array.isArray(progress.concepts) ? progress.concepts : [], phraseLevel: progress.phraseLevel || 1 },
+    custom: read<PhraseItem[]>(K.custom, []),
+    heard: read<Record<string, number>>(K.heard, {}),
     pin: (() => { try { return localStorage.getItem(K.pin) || '1234'; } catch { return '1234'; } })(),
   };
 }
@@ -88,6 +93,8 @@ function commit(patch: Partial<State>) {
     if (patch.records) localStorage.setItem(K.records, JSON.stringify(state.records));
     if (patch.progress) localStorage.setItem(K.progress, JSON.stringify(state.progress));
     if (patch.pin) localStorage.setItem(K.pin, state.pin);
+    if (patch.custom) localStorage.setItem(K.custom, JSON.stringify(state.custom));
+    if (patch.heard) localStorage.setItem(K.heard, JSON.stringify(state.heard));
   } catch (e) { console.error('저장 실패', e); }
   listeners.forEach(fn => fn());
 }
@@ -124,6 +131,16 @@ export const actions = {
   },
   setCards(cards: Record<string, Card>) { commit({ cards }); },
   setProgress(p: Partial<Progress>) { commit({ progress: { ...state.progress, ...p } }); },
+  addCustom(item: PhraseItem) { commit({ custom: [...state.custom, item] }); },
+  removeCustom(id: string) {
+    const cards = { ...state.cards }; delete cards['ph:' + id];
+    commit({ custom: state.custom.filter(p => p.id !== id), cards });
+  },
+  toggleHeard(id: string) {
+    const heard = { ...state.heard };
+    if (heard[id]) delete heard[id]; else heard[id] = Date.now();
+    commit({ heard });
+  },
   markConcept(id: string) {
     if (state.progress.concepts.includes(id)) return;
     commit({ progress: { ...state.progress, concepts: [...state.progress.concepts, id] } });

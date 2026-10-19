@@ -27,14 +27,14 @@ export interface Question {
 }
 
 export interface RoundItem {
-  id: string; type: QType; q: string; ans: string; val: string; ok: boolean; hint: boolean;
+  id: string; type: QType | 'odd'; q: string; ans: string; val: string; ok: boolean; hint: boolean;
 }
 
 export interface RoundRecord {
   ts: number;
   date: string;
-  menu: 'numbers';
-  stage: NumStage;
+  menu: 'numbers' | 'phrases';
+  stage?: NumStage;           // 숫자 영어만
   kind: RoundKind;
   correct: number;
   total: number;
@@ -59,10 +59,13 @@ export interface Config {
   newPerRound: number;    // 한 판에 새로 나오는 것 (표현·단어·글자 소리에서 씀)
   modes: { listen: boolean; say: boolean; place: boolean };
   childName: string;
+  childNameEn: string;    // 영어로 쓴 이름 (예: Jimin). "What's your name?"에 씀
+  childAge: number;       // 오늘의 한 마디 "How old are you?"에 씀 (0이면 그 문제는 안 나옴)
   voiceURI: string;       // 고른 영어 목소리 (비우면 미국 영어 자동)
 }
 
 export interface Progress {
   numCheck: boolean;      // 1~100 확인을 통과했는지 (또는 부모가 열어 줌)
   concepts: string[];     // 끝까지 본 개념 정리
+  phraseLevel: number;    // 오늘의 한 마디에서 아이에게 알려 준 마지막 단계 (새 단계가 열리면 알림)
 }
