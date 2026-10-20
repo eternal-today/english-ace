@@ -21,6 +21,54 @@ import { Music } from 'lucide-react';
 import { clearRound, loadRound } from '../engine/resume';
 import { AceSaveBar, confirmLeave } from '../ace/SaveBar';
 import { groupProgress, openGroups } from '../engine/phonics';
+import { Mic, Play } from 'lucide-react';
+import { Clip, MIC_ERROR_TEXT, canRecord, checkMic, clearClips, deleteClip, listClips, onClipsChanged, playClip } from '../engine/voice';
+
+/** 목소리 앨범 — 아이가 따라 말한 녹음 (이 기기에만 저장) */
+function VoiceAlbum() {
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [mic, setMic] = useState('');
+  useEffect(() => {
+    const load = () => { listClips().then(setClips); };
+    load();
+    return onClipsChanged(load);
+  }, []);
+  const can = canRecord();
+  return (
+    <Card>
+      <Title icon={<Mic size={18} className="text-trust-600" />}>목소리 앨범</Title>
+      <p className="text-sm text-slate-500 leading-relaxed">
+        아이가 "따라 말해 볼까?"로 녹음한 목소리가 모여요. 채점하지 않고 별도 없어요. 같은 문장은 마지막 녹음 하나만 남고, 이 기기 안에만 저장돼서 서버나 다른 기기로 가지 않아요.
+      </p>
+      {!can ? <p className="text-sm font-bold text-rose-500">이 기기의 브라우저에서는 녹음을 쓸 수 없어요.</p> : (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button className="btn-secondary px-4 py-2 text-sm flex items-center gap-1.5" onClick={async () => {
+            const r = await checkMic();
+            setMic(r === true ? '마이크를 쓸 수 있어요. 아이 화면에서 바로 녹음돼요.' : MIC_ERROR_TEXT[r]);
+          }}><Mic size={14} />마이크 확인</button>
+          {mic && <span className="text-xs font-bold text-slate-500">{mic}</span>}
+        </div>
+      )}
+      <p className="text-[11px] text-slate-400">처음 한 번 크롬이 마이크를 써도 되는지 물어요. "허용"을 눌러 주세요. 잘못 눌렀다면 주소창 왼쪽 자물쇠 → 권한에서 마이크를 허용으로 바꾸면 돼요.</p>
+      {clips.length === 0 ? <p className="text-sm text-slate-400">아직 녹음이 없어요.</p> : (
+        <div className="grid gap-1.5">
+          {clips.slice(0, 60).map(c => (
+            <div key={c.text} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+              <button aria-label="듣기" className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0" onClick={() => playClip(c.blob)}><Play size={14} className="text-trust-600 fill-trust-600" /></button>
+              <button className="min-w-0 flex-1 text-left" onClick={() => speak(c.text)}>
+                <div className="text-sm font-bold text-slate-700 truncate">{c.text}</div>
+                <div className="text-[11px] text-slate-400">{new Date(c.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · 원래 소리는 글자를 눌러요</div>
+              </button>
+              <button aria-label="지우기" className="text-slate-300 hover:text-rose-500 shrink-0" onClick={() => deleteClip(c.text)}><Trash2 size={16} /></button>
+            </div>
+          ))}
+          {clips.length > 60 && <p className="text-[11px] text-slate-400">최근 60개만 보여요 (모두 {clips.length}개)</p>}
+          <button className="btn-secondary py-2 text-sm text-rose-600" onClick={() => { if (window.confirm('녹음을 모두 지울까요?')) clearClips(); }}>녹음 모두 지우기</button>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 const Card = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
   <section className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 ${dim ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>{children}</section>
@@ -438,6 +486,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
             </Card>
 
             <VoiceCard draft={draft} setDraft={setDraft} />
+            <VoiceAlbum />
 
             <Card>
               <Title icon={<Lightbulb size={18} className="text-amber-500" />}>힌트</Title>

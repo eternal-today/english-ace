@@ -8,6 +8,7 @@ import { dayIndex, toneOf } from '../engine/srs';
 import { speak, speakParts } from '../engine/speech';
 import { CloseButton, Sheet } from '../components/ui';
 import { SceneArt } from '../components/SceneArt';
+import { VoiceButton } from '../components/VoiceButton';
 
 const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야', 3: '놀이·차례 · 유치원에서', 4: '허락·도움 · 주고받기 · 색깔', 5: '먹을 때 · 몸과 마음' };
 
@@ -148,6 +149,7 @@ export function PhraseDogam({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <button onClick={() => speakParts(open.say ? [open.say, ...open.answers] : open.answers, undefined, 600)} className="btn-secondary w-full py-3 flex items-center justify-center gap-2"><Volume2 size={18} />모두 이어서 듣기</button>
+            <VoiceButton key={open.id} text={open.say || open.answers[0]} save={!preview} />
             {heard[open.id] && <div className="flex items-center gap-2 text-sm font-black text-rose-500"><Stamp size={18} />영상에서 들었어요! ({new Date(heard[open.id]).toLocaleDateString('ko-KR')})</div>}
           </div>
         )}
