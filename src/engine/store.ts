@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react';
 import { Card, Config, Progress, RoundRecord } from '../types';
 import { PhraseItem } from '../data/phrases';
 import { forgetEnglishRecords, markDirty, notifyWallet, spendHint, takeCelebration } from '../ace/wallet';
+import { onPrefsApplied, prefsChanged } from '../ace/prefs';
 import { setVoiceURI } from './speech';
 
 const P = 'english_';
@@ -96,8 +97,16 @@ function commit(patch: Partial<State>) {
     if (patch.custom) localStorage.setItem(K.custom, JSON.stringify(state.custom));
     if (patch.heard) localStorage.setItem(K.heard, JSON.stringify(state.heard));
   } catch (e) { console.error('저장 실패', e); }
+  if (patch.config || patch.pin) prefsChanged();   // 부모님 설정 → 다른 기기에도
   listeners.forEach(fn => fn());
 }
+
+// 다른 기기에서 고친 부모님 설정(설정·PIN)이 넘어오면 다시 읽음
+onPrefsApplied(() => {
+  const fresh = load();
+  state = { ...state, config: fresh.config, pin: fresh.pin };
+  listeners.forEach(fn => fn());
+});
 
 export const getState = () => state;
 

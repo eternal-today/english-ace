@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Config, RoundRecord } from '../types';
 import { MAX_COUNT, MIN_COUNT, actions, earnedStars, getState, useStore } from '../engine/store';
-import { HINT_COST, couponState, coupons as aceCoupons, mathWishCoupons, useWallet } from '../ace/wallet';
+import { HINT_COST, couponState, coupons as aceCoupons, hubPin, mathWishCoupons, useWallet } from '../ace/wallet';
 import { goHome } from '../ace/links';
 import { STAGE_BY_ID, fmt, numWords } from '../engine/numbers';
 import { canSpeak, englishVoices, onVoicesChanged, setVoiceURI, speak } from '../engine/speech';
@@ -269,6 +269,14 @@ export default function Parent({ onHome }: { onHome: () => void }) {
   const store = useStore();
   const [tab, setTab] = useState<'settings' | 'chance' | 'records'>('settings');
   const [draft, setDraft] = useState<Config>(store.config);
+  // 다른 기기에서 설정이 넘어오면, 고치던 중이 아닐 때만 화면 값도 바꿈
+  const shownCfg = useRef(store.config);
+  useEffect(() => {
+    if (store.config === shownCfg.current) return;
+    const prev = shownCfg.current;
+    shownCfg.current = store.config;
+    setDraft(d => (JSON.stringify(d) === JSON.stringify(prev) ? store.config : d));
+  }, [store.config]);
   const [newPin, setNewPin] = useState('');
   const [selected, setSelected] = useState<RoundRecord | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -472,6 +480,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                     value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))} />
                   <button className="btn-secondary px-6" onClick={() => {
                     if (newPin.length !== 4) { toast('PIN 번호는 4자리여야 합니다.'); return; }
+                    if (newPin === hubPin()) { toast('에이스 홈 PIN과 다른 번호로 정해 주세요.'); return; }
                     actions.setPin(newPin); setNewPin(''); toast('PIN 번호가 변경되었습니다!');
                   }}>변경</button>
                 </div>
@@ -481,7 +490,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               <Card dim>
                 <Title icon={<Database size={18} className="text-slate-400" />}>기록 백업</Title>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  판 기록(별 계산에 쓰는 것)은 수학 에이스에 연결한 동기화 서버로 올라가서 에이스 홈과 다른 기기에서도 별이 맞게 보입니다. 기억 상자·단계 진행·설정은 이 기기에만 저장되니, 기기를 바꾸기 전에 백업 파일로 내려받아 두세요.
+                  판 기록(별 계산에 쓰는 것)은 수학 에이스에 연결한 동기화 서버로 올라가서 에이스 홈과 다른 기기에서도 별이 맞게 보입니다. 설정과 PIN도 다른 기기와 맞춰집니다. 기억 상자·단계 진행은 이 기기에만 저장되니, 기기를 바꾸기 전에 백업 파일로 내려받아 두세요.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <button className="btn-secondary py-3 text-sm" onClick={exportBackup}>백업 파일 받기</button>
@@ -523,9 +532,6 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               <Title icon={<Gift size={18} className="text-trust-600" />}>찬스와 쿠폰은 에이스 홈에서</Title>
               <p className="text-sm text-slate-500 leading-relaxed">
                 별은 모든 과목이 함께 쓰는 지갑 하나예요. 찬스 가게, 쿠폰 사용 처리, 별 장부는 에이스 홈의 부모님 모드에서 해요.
-              </p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                지금은 영어 에이스 화면에서만 영어 별이 합산에 들어갑니다. 에이스 홈·수학·한자 화면에도 영어 별이 보이도록 하는 작업은 별·허브 연동 단계에서 합니다.
               </p>
               {coupons.length > 0 && <p className="text-sm font-bold text-amber-600">사용을 기다리는 쿠폰 {coupons.length}장</p>}
               <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => goHome()}>
