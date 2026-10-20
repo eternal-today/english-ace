@@ -6,7 +6,7 @@
  * sound   동물 소리를 듣고 누구 소리인지 고르기 (Old MacDonald)
  */
 import { Card, Config } from '../types';
-import { LyricLine, SONG_BY_ID, SongUnit, WORDS, lyricSpoken } from '../data/songs';
+import { LyricLine, SONGS, SONG_BY_ID, SongUnit, WORDS, lyricSpoken } from '../data/songs';
 import { POption, PQuestion, PType } from './phrases';
 import { dayIndex } from './srs';
 import { shuffle } from './numbers';
@@ -15,10 +15,14 @@ export const wordCard = (id: string) => 'w:' + id;
 const pick = <T,>(l: T[]) => l[Math.floor(Math.random() * l.length)];
 
 /** 보기로 쓸 다른 단어: 같은 단원에서 먼저, 모자라면 다른 단원에서 */
-function distractors(unit: SongUnit, answer: string, n: number, filter: (id: string) => boolean = id => !WORDS[id].lyricOnly): string[] {
+function distractors(unit: SongUnit, answer: string, n: number, filter0: (id: string) => boolean = id => !WORDS[id].lyricOnly): string[] {
+  // 그림이 같은 단어(lamb·sheep 🐑)는 보기로 같이 내지 않음
+  const filter = (id: string) => filter0(id) && WORDS[id].emoji !== WORDS[answer].emoji;
   const same = shuffle(unit.words.map(w => w.id).filter(id => id !== answer && filter(id)));
   const other = shuffle(Object.keys(WORDS).filter(id => id !== answer && !same.includes(id) && filter(id)));
-  return [...same, ...other].slice(0, n);
+  // 보기끼리도 그림이 겹치지 않게
+  const seenEmoji = new Set([WORDS[answer].emoji]);
+  return [...same, ...other].filter(id => !seenEmoji.has(WORDS[id].emoji) && !!seenEmoji.add(WORDS[id].emoji)).slice(0, n);
 }
 
 const opt = (id: string, correct: boolean, withSpeak = false): POption => ({
@@ -103,6 +107,20 @@ export function planSongRound(config: Config, cards: Record<string, Card>, unitI
     questions.push({ ...q, isNew: first, isReview: dueSet.has(id) });
   }
   return { questions, newIds };
+}
+
+/**
+ * 열린 노래 수: 처음 세 곡은 열려 있고, 앞 노래 단어를 80% 이상 만나면 다음 노래가 저절로 열림
+ * (부모님이 일일이 열어 주지 않아도 되게. 오늘의 한 판은 노래 순서대로 새 단어를 내므로 따로 막지 않음)
+ */
+export function openSongCount(cards: Record<string, Card>): number {
+  let n = Math.min(3, SONGS.length);   // Old MacDonald, Hey Diddle Diddle, Twinkle (아는 노래)는 처음부터
+  while (n < SONGS.length) {
+    const p = unitProgress(cards, SONGS[n - 1].id);
+    if (p.met / p.total < 0.8) break;
+    n++;
+  }
+  return n;
 }
 
 /** 단원 진행 (만난 단어, 익힌 단어) */

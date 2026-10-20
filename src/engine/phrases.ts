@@ -113,7 +113,7 @@ export function typesFor(item: PhraseItem, pool: PhraseItem[]): PType[] {
   const out: PType[] = ['odd', 'meaning'];
   const others = pool.filter(p => p.id !== item.id);
   if (item.scene && others.filter(p => p.scene && sceneName(p) !== sceneName(item)).length >= 2) out.push('scene');
-  if (item.say && item.group !== '날씨' && item.group !== '이게 뭐야' && others.filter(p => p.say && p.say !== item.say).length >= 2) out.push('reply');
+  if (item.say && item.group !== '날씨' && item.group !== '이게 뭐야' && item.group !== '색깔' && others.filter(p => p.say && p.say !== item.say).length >= 2) out.push('reply');
   return out;
 }
 

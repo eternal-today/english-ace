@@ -9,7 +9,7 @@ import { speak, speakParts } from '../engine/speech';
 import { CloseButton, Sheet } from '../components/ui';
 import { SceneArt } from '../components/SceneArt';
 
-const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야' };
+const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야', 3: '놀이·차례 · 유치원에서', 4: '허락·도움 · 주고받기 · 색깔', 5: '먹을 때 · 몸과 마음' };
 
 /** 오늘의 한 마디 — 시작 화면 */
 export function PhraseHome({ onBack, onStart, onDogam }: { onBack: () => void; onStart: () => void; onDogam: () => void }) {

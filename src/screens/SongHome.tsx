@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ChevronRight, Music, Play, Volume2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Lock, Music, Play, Volume2 } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { SONGS, SONG_BY_ID, lyricFilled } from '../data/songs';
-import { unitProgress, wordCard } from '../engine/songs';
+import { openSongCount, unitProgress, wordCard } from '../engine/songs';
 import { toneOf } from '../engine/srs';
 import { speak } from '../engine/speech';
 import { SongPlayer, youtubeId } from '../components/SongPlayer';
 
 /** 주제 여행 — 단원 목록 */
 export function SongList({ onBack, onUnit }: { onBack: () => void; onUnit: (id: string) => void }) {
-  const { cards } = useStore();
+  const { cards, preview } = useStore();
+  const open = preview ? SONGS.length : openSongCount(cards);
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="w-full max-w-lg landscape:max-w-3xl mx-auto space-y-5">
@@ -22,12 +23,13 @@ export function SongList({ onBack, onUnit }: { onBack: () => void; onUnit: (id: 
           </div>
         </header>
         <div className="space-y-3">
-          {SONGS.map(u => {
+          {SONGS.map((u, i) => {
             const p = unitProgress(cards, u.id);
+            const locked = i >= open && p.met === 0;   // 이미 만난 단어가 있는 노래는 늘 열어 둠
             return (
-              <motion.button key={u.id} whileTap={{ scale: 0.98 }} onClick={() => onUnit(u.id)}
-                className="w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-left">
-                <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center text-3xl shrink-0">{u.words[1]?.emoji || '🎵'}</div>
+              <motion.button key={u.id} whileTap={{ scale: locked ? 1 : 0.98 }} disabled={locked} onClick={() => onUnit(u.id)}
+                className={`w-full rounded-[2rem] p-5 flex items-center gap-4 text-left ${locked ? 'bg-slate-50 border-2 border-dashed border-slate-200 opacity-60' : 'bg-white border border-slate-100 shadow-sm'}`}>
+                <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center text-3xl shrink-0">{u.words.find(w => !w.lyricOnly)?.emoji || '🎵'}</div>
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="en text-xl text-slate-900">{u.title}</span>
@@ -37,14 +39,14 @@ export function SongList({ onBack, onUnit }: { onBack: () => void; onUnit: (id: 
                     <div className="bg-brand-500 h-full" style={{ width: `${(p.learned / p.total) * 100}%` }} />
                     <div className="bg-brand-200 h-full" style={{ width: `${((p.met - p.learned) / p.total) * 100}%` }} />
                   </div>
-                  <div className="text-xs font-bold text-slate-400">단어 {p.total}개 · 익힌 단어 {p.learned}개</div>
+                  <div className="text-xs font-bold text-slate-400">{locked ? '앞 노래 단어를 만나면 열려요' : `단어 ${p.total}개 · 익힌 단어 ${p.learned}개`}</div>
                 </div>
-                <ChevronRight size={20} className="text-slate-300 shrink-0" />
+                {locked ? <Lock size={18} className="text-slate-300 shrink-0" /> : <ChevronRight size={20} className="text-slate-300 shrink-0" />}
               </motion.button>
             );
           })}
         </div>
-        <p className="text-xs font-bold text-slate-400 px-2">노래는 앞으로 더 늘어나요.</p>
+        <p className="text-xs font-bold text-slate-400 px-2">앞 노래의 단어를 거의 다 만나면 다음 노래가 저절로 열려요.</p>
       </div>
     </div>
   );

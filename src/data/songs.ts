@@ -70,6 +70,89 @@ export const SONGS: SongUnit[] = [
       { text: 'And the dish ran away with the ___.', answer: 'spoon' },
     ],
   },
+  // ── 2026-10-20 추가 (모두 1929년 전에 나온 노래만: 가사를 앱에 넣을 수 있음) ──
+  {
+    id: 'twinkle', title: 'Twinkle, Twinkle, Little Star', known: true,
+    words: [W('star', '⭐', '별'), W('diamond', '💎', '다이아몬드'), W('world', '🌍', '세상'), { ...W('sky', '🌌', '하늘'), lyricOnly: true }],
+    lyrics: [
+      { text: 'Twinkle, twinkle, little ___.', answer: 'star' },
+      { text: 'Up above the ___ so high.', answer: 'world' },
+      { text: 'Like a ___ in the sky.', answer: 'diamond' },
+      { text: 'Like a diamond in the ___.', answer: 'sky' },
+    ],
+  },
+  {
+    id: 'itsy', title: 'Itsy Bitsy Spider', known: false,
+    words: [W('spider', '🕷️', '거미'), W('rain', '🌧️', '비'), W('sun', '☀️', '해')],
+    lyrics: [
+      { text: 'The itsy bitsy ___ climbed up the water spout.', answer: 'spider' },
+      { text: 'Down came the ___ and washed the spider out.', answer: 'rain' },
+      { text: 'Out came the ___ and dried up all the rain.', answer: 'sun' },
+    ],
+  },
+  {
+    id: 'baa', title: 'Baa, Baa, Black Sheep', known: false,
+    words: [W('sheep', '🐑', '양'), W('wool', '🧶', '털실'), W('boy', '👦', '남자아이')],
+    lyrics: [
+      { text: 'Baa, baa, black ___, have you any wool?', answer: 'sheep' },
+      { text: 'Baa, baa, black sheep, have you any ___?', answer: 'wool' },
+      { text: 'And one for the little ___ who lives down the lane.', answer: 'boy' },
+    ],
+  },
+  {
+    id: 'mary', title: 'Mary Had a Little Lamb', known: false,
+    words: [W('lamb', '🐑', '아기 양'), W('snow', '❄️', '눈'), W('school', '🏫', '학교')],
+    lyrics: [
+      { text: 'Mary had a little ___.', answer: 'lamb' },
+      { text: 'Its fleece was white as ___.', answer: 'snow' },
+      { text: 'It followed her to ___ one day.', answer: 'school' },
+    ],
+  },
+  {
+    id: 'row', title: 'Row, Row, Row Your Boat', known: false,
+    words: [W('boat', '🚣', '배'), { ...W('stream', '🏞️', '시냇물'), lyricOnly: true }, { ...W('dream', '💭', '꿈'), lyricOnly: true }],
+    lyrics: [
+      { text: 'Row, row, row your ___.', answer: 'boat' },
+      { text: 'Gently down the ___.', answer: 'stream' },
+      { text: 'Life is but a ___.', answer: 'dream' },
+    ],
+  },
+  {
+    id: 'humpty', title: 'Humpty Dumpty', known: false,
+    words: [W('egg', '🥚', '달걀'), W('wall', '🧱', '담'), W('king', '🤴', '왕')],
+    lyrics: [
+      { text: 'Humpty Dumpty sat on a ___.', answer: 'wall' },
+      { text: "All the ___'s horses and all the king's men.", answer: 'king' },
+    ],
+  },
+  {
+    id: 'oldman', title: 'This Old Man', known: false,
+    words: [W('thumb', '👍', '엄지'), W('shoe', '👟', '신발'), W('knee', '🦵', '무릎'), W('door', '🚪', '문'), W('bone', '🦴', '뼈다귀')],
+    lyrics: [
+      { text: 'This old man, he played one, he played knick-knack on my ___.', answer: 'thumb' },
+      { text: 'This old man, he played two, he played knick-knack on my ___.', answer: 'shoe' },
+      { text: 'This old man, he played three, he played knick-knack on my ___.', answer: 'knee' },
+      { text: 'This old man, he played four, he played knick-knack on my ___.', answer: 'door' },
+      { text: 'Give a dog a ___.', answer: 'bone' },
+    ],
+  },
+  {
+    id: 'bingo', title: 'BINGO', known: false,
+    words: [W('farmer', '👨‍🌾', '농부'), W('dog', '🐶', '강아지')],
+    lyrics: [
+      { text: 'There was a ___ had a dog.', answer: 'farmer' },
+      { text: 'There was a farmer had a ___, and Bingo was his name-o.', answer: 'dog' },
+    ],
+  },
+  {
+    id: 'jackjill', title: 'Jack and Jill', known: false,
+    words: [W('hill', '⛰️', '언덕'), W('water', '💧', '물'), W('crown', '👑', '왕관')],
+    lyrics: [
+      { text: 'Jack and Jill went up the ___.', answer: 'hill' },
+      { text: 'To fetch a pail of ___.', answer: 'water' },
+      { text: 'Jack fell down and broke his ___.', answer: 'crown' },
+    ],
+  },
 ];
 
 export const SONG_BY_ID = Object.fromEntries(SONGS.map(s => [s.id, s])) as Record<string, SongUnit>;

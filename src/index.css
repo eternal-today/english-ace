@@ -8,17 +8,17 @@
   /* 영어 글자·숫자는 둥근 Fredoka로 크게 */
   --font-en: "Fredoka", "Pretendard Variable", Pretendard, sans-serif;
 
-  /* 아이 화면용 — 수학·한자와 같은 틀, 대표 색만 차분한 겨자색 */
-  --color-brand-50: #fdf8ec;
-  --color-brand-100: #faefcf;
-  --color-brand-200: #f3dc9c;
-  --color-brand-300: #e9c46a;
-  --color-brand-400: #dbab3f;
-  --color-brand-500: #c79325;
-  --color-brand-600: #a8781a;
-  --color-brand-700: #8a6117;
-  --color-brand-800: #6f4e18;
-  --color-brand-900: #5c4118;
+  /* 아이 화면용 — 수학·한자와 같은 틀, 대표 색만 살구 코랄 (2026-10-20, 겨자색에서 바꿈) */
+  --color-brand-50: #fdf4ef;
+  --color-brand-100: #fbe6da;
+  --color-brand-200: #f6c9b1;
+  --color-brand-300: #efa783;
+  --color-brand-400: #e68c64;
+  --color-brand-500: #d9774f;
+  --color-brand-600: #c3613a;
+  --color-brand-700: #a24d2e;
+  --color-brand-800: #813f28;
+  --color-brand-900: #683524;
 
   /* 부모 화면용 — 수학 에이스와 같은 차분한 블루 */
   --color-trust-50: #f0f9ff;

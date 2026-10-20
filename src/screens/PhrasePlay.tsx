@@ -436,7 +436,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
             <motion.div key={p.id} initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -30, opacity: 0 }}
               className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-brand-100 p-7 space-y-4">
               {p.scene && <SceneArt scene={p.scene} size="lg" />}
-              {p.scene?.name && <div className="text-lg font-black text-slate-700">오늘은 {p.scene.name}</div>}
+              {p.scene?.name && p.scene.icon && <div className="text-lg font-black text-slate-700">오늘은 {p.scene.name}</div>}
               {p.scene && !p.say && <div className="text-lg font-black text-slate-700">{p.scene.ko}에는 이렇게 말해요</div>}
               {p.say && (
                 <button onClick={() => speak(p.say!)} className="w-full bg-brand-50 rounded-2xl px-4 py-3 active:scale-95">
@@ -622,7 +622,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 </div>
                 {q.type === 'odd' && q.scene && <SceneArt scene={q.scene} size="lg" />}
                 {q.type === 'odd' && q.scene && !q.say && <div className="text-xl font-black text-slate-700">{q.scene.ko} 뭐라고 할까?</div>}
-                {q.type === 'odd' && q.scene?.name && <div className="text-lg font-black text-slate-700 bg-slate-50 rounded-2xl px-4 py-2">오늘은 {q.scene.name}이에요</div>}
+                {q.type === 'odd' && q.scene?.name && q.scene.icon && <div className="text-lg font-black text-slate-700 bg-slate-50 rounded-2xl px-4 py-2">오늘은 {q.scene.name}이에요</div>}
                 {phQ && q.letter && <div className="en text-[clamp(5.5rem,24vmin,10rem)] leading-none text-slate-800">{q.letter}</div>}
                 {(q.type === 'wsee' || q.type === 'pfirst') && q.emoji && <div className="text-[clamp(5rem,22vmin,9rem)] leading-none">{q.emoji}</div>}
                 {q.type === 'lyric' && q.lyric && (

@@ -127,6 +127,7 @@ function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =>
       <p className="text-sm text-slate-500 leading-relaxed">
         단원마다 유튜브 주소를 넣어 주세요. 앱 안에서 재생하고 노래가 끝나면 저절로 닫혀서, 추천 영상으로 빠지지 않습니다.
         저작권이 끝난 오래된 동요라도 영상은 만든 채널의 것이라 앱에 담지 않고 주소로만 연결합니다.
+        주소가 비어 있으면 "유튜브에서 찾기"로 바로 검색할 수 있어요. 마음에 드는 영상의 주소를 복사해 넣고 "미리 재생"으로 확인해 주세요.
       </p>
       {SONGS.map(u => {
         const url = draft.songs?.[u.id] || '';
@@ -137,7 +138,10 @@ function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =>
             <div className="flex gap-2">
               <input className="input-field bg-slate-50 flex-1" placeholder="https://youtu.be/…" value={url}
                 onChange={e => { setDraft({ ...draft, songs: { ...(draft.songs || {}), [u.id]: e.target.value.trim() } }); setBlocked(b => ({ ...b, [u.id]: false })); }} />
-              <button className="btn-secondary px-4 shrink-0" disabled={!ok} onClick={() => setPreview(u.id)}>미리 재생</button>
+              {ok
+                ? <button className="btn-secondary px-4 shrink-0" onClick={() => setPreview(u.id)}>미리 재생</button>
+                : <a className="btn-secondary px-4 shrink-0 flex items-center" target="_blank" rel="noopener noreferrer"
+                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(u.title + ' nursery rhyme')}`}>유튜브에서 찾기</a>}
             </div>
             {url && !ok && <p className="text-[11px] font-bold text-rose-500">유튜브 주소가 아닌 것 같아요.</p>}
             {blocked[u.id] && <p className="text-[11px] font-bold text-amber-600">이 영상은 앱 안 재생이 막혀 있어요. 아이 화면에서는 "새 창으로 열기"로 열립니다. 다른 영상을 고르는 것을 권해요.</p>}
