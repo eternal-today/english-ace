@@ -653,7 +653,7 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 )}
                 {listenText && (
                   <div className="space-y-3">
-                    {q.type === 'lyric' || (phQ && (q.letter || q.emoji || answered)) ? null : (q.type === 'odd' || (answered && !qSong)) ? <SayLine text={listenText} /> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
+                    {q.type === 'lyric' || (phQ && (q.letter || q.emoji || answered)) ? null : (q.type === 'odd' || (answered && !qSong)) ? <><SayLine text={listenText} />{answered && !qSong && koText(listenText) && <div className="text-base font-bold text-slate-500 -mt-1">{koText(listenText)}</div>}</> : <div className="w-20 h-20 rounded-[1.75rem] bg-brand-50 text-brand-500 flex items-center justify-center mx-auto"><Ear size={40} strokeWidth={2.2} /></div>}
                     <div className="flex items-center justify-center gap-3">
                       <button onClick={() => speak(listenText)} aria-label="다시 듣기"
                         className="h-14 px-6 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center gap-2 font-black shadow-lg shadow-brand-200 active:scale-95">
