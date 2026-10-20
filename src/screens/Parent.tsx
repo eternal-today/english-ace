@@ -25,7 +25,7 @@ import { Mic, Play } from 'lucide-react';
 import { Clip, MIC_ERROR_TEXT, canRecord, checkMic, clearClips, deleteClip, listClips, onClipsChanged, playClip } from '../engine/voice';
 
 /** 목소리 앨범 — 아이가 따라 말한 녹음 (이 기기에만 저장) */
-function VoiceAlbum() {
+function VoiceAlbum({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
   const [clips, setClips] = useState<Clip[]>([]);
   const [mic, setMic] = useState('');
   useEffect(() => {
@@ -50,6 +50,11 @@ function VoiceAlbum() {
         </div>
       )}
       <p className="text-[11px] text-slate-400">처음 한 번 크롬이 마이크를 써도 되는지 물어요. "허용"을 눌러 주세요. 잘못 눌렀다면 주소창 왼쪽 자물쇠 → 권한에서 마이크를 허용으로 바꾸면 돼요.</p>
+      <div className="space-y-2">
+        <Label>따라 말하기 하루 횟수 (한 번에 5개, 0이면 끔)</Label>
+        <Stepper value={draft.speakPerDay ?? 2} min={0} max={6} unit="번" onChange={n => setDraft({ ...draft, speakPerDay: n })} />
+        <p className="text-[11px] text-slate-400">같은 말은 하루 3번까지만 녹음할 수 있어요. 녹음은 놀이터의 "따라 말하기"에서만 해요 (문제 풀이 중에는 없음).</p>
+      </div>
       {clips.length === 0 ? <p className="text-sm text-slate-400">아직 녹음이 없어요.</p> : (
         <div className="grid gap-1.5">
           {clips.slice(0, 60).map(c => (
@@ -486,7 +491,7 @@ export default function Parent({ onHome }: { onHome: () => void }) {
             </Card>
 
             <VoiceCard draft={draft} setDraft={setDraft} />
-            <VoiceAlbum />
+            <VoiceAlbum draft={draft} setDraft={setDraft} />
 
             <Card>
               <Title icon={<Lightbulb size={18} className="text-amber-500" />}>힌트</Title>

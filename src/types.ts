@@ -1,5 +1,5 @@
 /** 아이 홈의 메뉴 (1차: 숫자 영어부터 순서대로 엶) */
-export type MenuId = 'numbers' | 'phrases' | 'songs' | 'phonics' | 'alphabet';
+export type MenuId = 'numbers' | 'phrases' | 'songs' | 'phonics' | 'speak';
 
 /** 숫자 영어 단계: 1~100 / 100~999 / 1,000~9,999 */
 export type NumStage = 'n100' | 'n999' | 'n9999';
@@ -64,6 +64,7 @@ export interface Config {
   childAge: number;       // 오늘의 한 마디 "How old are you?"에 씀 (0이면 그 문제는 안 나옴)
   voiceURI: string;       // 고른 영어 목소리 (비우면 미국 영어 자동)
   songs: Record<string, string>;   // 주제 여행 단원별 유튜브 주소 (부모님이 넣음)
+  speakPerDay: number;    // 따라 말하기를 하루에 몇 번 할 수 있는지 (한 번에 5개, 0이면 끔)
 }
 
 export interface Progress {

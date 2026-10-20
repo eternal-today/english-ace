@@ -16,6 +16,7 @@ import PhrasePlay from './screens/PhrasePlay';
 import { PhraseDogam, PhraseHome } from './screens/PhraseHome';
 import { SongList, SongUnitView } from './screens/SongHome';
 import { PhonicsConcept, PhonicsHome, SoundDogam } from './screens/PhonicsHome';
+import SpeakPlay from './screens/SpeakPlay';
 import { SongPlayer } from './components/SongPlayer';
 import { SONG_BY_ID } from './data/songs';
 import { CONCEPT_BY_STAGE } from './engine/concepts';
@@ -24,7 +25,7 @@ import { stopSpeak } from './engine/speech';
 import { confirmLeave } from './ace/SaveBar';
 
 type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay'
-  | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam' | 'dailyPlay';
+  | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam' | 'dailyPlay' | 'speak';
 
 // 첫 화면 그리기 전에: 축하 목록 준비 (처음이면 지금까지의 마일스톤을 조용히 "축하 완료"로)
 initCelebration();
@@ -99,7 +100,7 @@ export default function App() {
   const startSongs = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('songPlay'); };
   const startDaily = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('dailyPlay'); };
   const startPhonics = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phonicsPlay'); };
-  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); };
+  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); if (m === 'speak') setView('speak'); };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 selection:bg-brand-100 selection:text-brand-900">
@@ -145,6 +146,7 @@ export default function App() {
             {view === 'phonics' && <PhonicsHome onBack={() => setView('home')} onStart={startPhonics} onConcept={no => { setPhGroup(no); setView('phonicsConcept'); }} onDogam={() => setView('soundDogam')} />}
             {view === 'phonicsConcept' && <PhonicsConcept key={phGroup} groupNo={phGroup} onBack={() => { stopSpeak(); setView('phonics'); }} onPlay={startPhonics} />}
             {view === 'soundDogam' && <SoundDogam onBack={() => { stopSpeak(); setView('phonics'); }} />}
+            {view === 'speak' && <SpeakPlay onExit={() => { stopSpeak(); setView('home'); }} />}
             {view === 'dailyPlay' && (
               <PhrasePlay key={roundKey} daily resume={resume} backRef={playBackRef}
                 onExit={() => setView('home')} onAgain={startDaily}

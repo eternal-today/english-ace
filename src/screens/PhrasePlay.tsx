@@ -20,7 +20,6 @@ import { SONGS } from '../data/songs';
 import { planDailyRound } from '../engine/daily';
 import { answerText, numWords, questionText, shownAnswer } from '../engine/numbers';
 import { NumberView, sayNumber, sayNumberSlow } from '../components/NumberView';
-import { VoiceButton } from '../components/VoiceButton';
 
 const GUARD_MS = 400;
 
@@ -409,7 +408,6 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                   ))}
                 </div>
               )}
-              <VoiceButton key={w.word} text={w.word} save={!preview} />
             </motion.div>
           </AnimatePresence>
           <button className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2" onClick={next}>
@@ -458,7 +456,6 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
               <button onClick={() => speakParts(p.say ? [p.say, ...p.answers] : p.answers, undefined, 600)} className="btn-secondary w-full py-3 flex items-center justify-center gap-2">
                 <Volume2 size={18} />모두 이어서 듣기
               </button>
-              <VoiceButton key={p.id} text={p.say || p.answers[0]} save={!preview} />
             </motion.div>
           </AnimatePresence>
           <button className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2" onClick={next}>
@@ -579,9 +576,6 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
   const pictureOpts = q.options.some(o => o.emoji) && q.type !== 'wsee';
   const phQ = PH_TYPES.has(q.type);
   const letterOpts = phQ && !pictureOpts;
-  // 따라 말하기: 들은 말(없으면 맞는 대답), 노래는 단어. 숫자·글자 소리 문제에는 없음
-  const voiceText = qNum || phQ ? '' : songWord ? songWord.word
-    : listenText || q.options.find(o => !o.correct)?.text || '';
   const pickedOpt = q.options.find(o => o.key === picked);
   const koText = (t: string) => koFilled(t, f);
 
@@ -720,7 +714,6 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                     )}
                   </motion.div>
                 )}
-                {answered && voiceText && <VoiceButton key={voiceText} text={voiceText} save={!preview} />}
               </motion.div>
             </AnimatePresence>
           </div>

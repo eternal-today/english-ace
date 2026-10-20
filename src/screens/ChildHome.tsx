@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, ChevronRight, MessageCircle, Music, PlayCircle, Search, Sparkles, Star, Volume2 } from 'lucide-react';
+import { BookOpen, ChevronRight, MessageCircle, Mic, Music, PlayCircle, Search, Sparkles, Star, Volume2 } from 'lucide-react';
 import { MenuId } from '../types';
 import { BADGES, useStore } from '../engine/store';
 import { useWallet } from '../ace/wallet';
@@ -25,6 +25,7 @@ const MENUS: { id: MenuId; label: string; sub: string; icon: React.ReactNode; re
   { id: 'phrases', label: '오늘의 한 마디', sub: '엉뚱한 대답 찾기', icon: <MessageCircle size={28} />, ready: true },
   { id: 'songs', label: '주제 여행', sub: '노래 속 단어 찾기', icon: <Music size={28} />, ready: true },
   { id: 'phonics', label: '소리 탐정', sub: '첫소리 찾기', icon: <Search size={28} />, ready: true },
+  { id: 'speak', label: '따라 말하기', sub: '내 목소리 들어 보기', icon: <Mic size={28} />, ready: true },
 ];
 
 export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDogam, onDaily }: Props) {
@@ -106,9 +107,9 @@ export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDog
           <div>
             <div className="text-xs font-black text-slate-400 mb-2 px-1">골라 하는 놀이터</div>
             <div className="grid grid-cols-2 gap-3">
-              {MENUS.map(m => (
+              {MENUS.map((m, i) => (
                 <motion.button key={m.id} whileTap={{ scale: m.ready ? 0.95 : 1 }} disabled={!m.ready} onClick={() => onMenu(m.id)}
-                  className="rounded-3xl p-4 flex items-center gap-3 text-left bg-white border-2 border-slate-200 text-brand-600 disabled:opacity-50">
+                  className={`${i === MENUS.length - 1 && MENUS.length % 2 === 1 ? 'col-span-2 ' : ''}rounded-3xl p-4 flex items-center gap-3 text-left bg-white border-2 border-slate-200 text-brand-600 disabled:opacity-50`}>
                   <div className="h-12 min-w-12 px-2 rounded-2xl flex items-center justify-center bg-brand-50 shrink-0">{m.icon}</div>
                   <div className="min-w-0">
                     <div className="font-black text-base text-slate-700">{m.label}</div>

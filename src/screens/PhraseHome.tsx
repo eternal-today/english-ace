@@ -149,7 +149,7 @@ export function PhraseDogam({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <button onClick={() => speakParts(open.say ? [open.say, ...open.answers] : open.answers, undefined, 600)} className="btn-secondary w-full py-3 flex items-center justify-center gap-2"><Volume2 size={18} />모두 이어서 듣기</button>
-            <VoiceButton key={open.id} text={open.say || open.answers[0]} save={!preview} />
+            <VoiceButton key={open.id} text={open.answers[0]} listenOnly />
             {heard[open.id] && <div className="flex items-center gap-2 text-sm font-black text-rose-500"><Stamp size={18} />영상에서 들었어요! ({new Date(heard[open.id]).toLocaleDateString('ko-KR')})</div>}
           </div>
         )}

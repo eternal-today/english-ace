@@ -42,7 +42,7 @@ function defaultConfig(): Config {
   return {
     count: 10, difficulty: 1, newPerRound: 3,
     modes: { listen: true, say: true, place: true },
-    childName: name, childNameEn: '', childAge: 0, voiceURI: '', songs: {},
+    childName: name, childNameEn: '', childAge: 0, voiceURI: '', songs: {}, speakPerDay: 2,
   };
 }
 
