@@ -97,14 +97,14 @@ function commit(patch: Partial<State>) {
     if (patch.custom) localStorage.setItem(K.custom, JSON.stringify(state.custom));
     if (patch.heard) localStorage.setItem(K.heard, JSON.stringify(state.heard));
   } catch (e) { console.error('저장 실패', e); }
-  if (patch.config || patch.pin) prefsChanged();   // 부모님 설정 → 다른 기기에도
+  if (patch.config || patch.pin || patch.custom) prefsChanged();   // 부모님 설정·직접 넣은 표현 → 다른 기기에도
   listeners.forEach(fn => fn());
 }
 
 // 다른 기기에서 고친 부모님 설정(설정·PIN)이 넘어오면 다시 읽음
 onPrefsApplied(() => {
   const fresh = load();
-  state = { ...state, config: fresh.config, pin: fresh.pin };
+  state = { ...state, config: fresh.config, pin: fresh.pin, custom: fresh.custom };
   listeners.forEach(fn => fn());
 });
 
