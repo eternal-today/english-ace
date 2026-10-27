@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, Ear, Music, Search, Flame, Home, Lightbulb, R
 import { RoundItem, RoundRecord } from '../types';
 import { Milestone, actions, getState, useStore } from '../engine/store';
 import { HINT_COST, useWallet } from '../ace/wallet';
+import { paidRound } from '../ace/playground';
 import { PQuestion, PType, allItems, fillOf, openLevel, planPRound, resolve } from '../engine/phrases';
 import { koFilled, koOf } from '../data/phrases';
 import { shuffle } from '../engine/numbers';
@@ -177,11 +178,14 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
     const correct = finalItems.filter(i => i.ok).length;
     const total = finalItems.length;
     const accOk = total === 0 || correct / total >= 0.4;
-    const stars = accOk ? Math.floor(correct / 5) : 0;
+    // 놀이터 무료 2번 뒤 별을 내고 한 판은 별 없음 (규칙 11번)
+    const paid = !preview && menu !== 'daily' && paidRound('english', menu);
+    const stars = accOk && !paid ? Math.floor(correct / 5) : 0;
     const rec: RoundRecord = {
       ts: Date.now(), date: new Date().toLocaleDateString('ko-KR'), menu, ...(unitId ? { unit: unitId } : {}), kind: 'play', correct, total, stars,
       hintsPaid: paidUsed, items: finalItems,
       ...(!accOk && Math.floor(correct / 5) > 0 ? { lowAcc: true } : {}),
+      ...(paid ? { paidPlay: true } : {}),
     };
     clearRound();
     const hit = preview ? null : actions.addRecord(rec);
@@ -519,6 +523,11 @@ export default function PhrasePlay({ onExit, onAgain, onMilestone, onOpenShop, r
                 <span className="text-amber-400 font-medium"> · 5문제 맞힐 때마다 별 1개</span>
               </p>
               {preview && <p className="text-xs font-black text-slate-500 mt-2 bg-white rounded-xl px-3 py-2">👀 부모님 체험이라 별과 기록은 남지 않았어요.</p>}
+              {record.paidPlay && (
+                <p className="text-xs font-black text-amber-700 mt-2 bg-white rounded-xl px-3 py-2">
+                  별을 내고 한 판이라 이번 판은 별이 없어요. 오늘의 한 판에서는 별을 받을 수 있어! ⭐
+                </p>
+              )}
               {record.lowAcc && (
                 <p className="text-xs font-black text-rose-500 mt-2 bg-white rounded-xl px-3 py-2">
                   10문제 중 4문제보다 적게 맞혀서 이번 판은 별이 없어요. 보기를 하나씩 들어 보고 고르면 별을 받을 수 있어! 💪

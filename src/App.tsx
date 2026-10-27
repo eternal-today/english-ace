@@ -23,6 +23,8 @@ import { CONCEPT_BY_STAGE } from './engine/concepts';
 import { SavedRound, loadRound } from './engine/resume';
 import { stopSpeak } from './engine/speech';
 import { confirmLeave } from './ace/SaveBar';
+import { clearPaid, usePlayGate } from './ace/playground';
+import { PLAY_LABEL } from './screens/ChildHome';
 
 type ChildView = 'home' | 'numbers' | 'concept' | 'play' | 'phrases' | 'phraseDogam' | 'phrasePlay' | 'songs' | 'songUnit' | 'songPlay'
   | 'phonics' | 'phonicsConcept' | 'phonicsPlay' | 'soundDogam' | 'dailyPlay' | 'speak';
@@ -85,7 +87,10 @@ export default function App() {
     if (fallback) fallback.style.display = 'none';
   }, []);
 
-  const start = (st: NumStage, k: RoundKind) => { stopSpeak(); setResume(null); setStage(st); setKind(k); setRoundKey(n => n + 1); setView('play'); };
+  // 놀이터 항목은 하루 2번 그냥, 그 뒤로는 별 1개 (규칙 11번). 부모님 체험 중에는 세지 않음
+  const play = usePlayGate('english');
+  const gate = (item: MenuId, go: () => void) => { if (store.preview) go(); else play.gate(item, PLAY_LABEL[item] || item, go); };
+  const start = (st: NumStage, k: RoundKind) => gate('numbers', () => { stopSpeak(); setResume(null); setStage(st); setKind(k); setRoundKey(n => n + 1); setView('play'); });
   const resumeRound = () => {
     const saved = loadRound();
     if (!saved) { setView('home'); return; }
@@ -96,11 +101,11 @@ export default function App() {
     if (saved.menu === 'songs' && saved.unitId) { setUnitId(saved.unitId); setView('songPlay'); return; }
     setStage(saved.stage); setKind(saved.kind); setView('play');
   };
-  const startPhrases = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phrasePlay'); };
-  const startSongs = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('songPlay'); };
-  const startDaily = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('dailyPlay'); };
-  const startPhonics = () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phonicsPlay'); };
-  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); if (m === 'speak') setView('speak'); };
+  const startPhrases = () => gate('phrases', () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phrasePlay'); });
+  const startSongs = () => gate('songs', () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('songPlay'); });
+  const startDaily = () => { clearPaid('english'); stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('dailyPlay'); };
+  const startPhonics = () => gate('phonics', () => { stopSpeak(); setResume(null); setRoundKey(n => n + 1); setView('phonicsPlay'); });
+  const openMenu = (m: MenuId) => { if (m === 'numbers') setView('numbers'); if (m === 'phrases') setView('phrases'); if (m === 'songs') setView('songs'); if (m === 'phonics') setView('phonics'); if (m === 'speak') gate('speak', () => setView('speak')); };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 selection:bg-brand-100 selection:text-brand-900">
@@ -173,6 +178,7 @@ export default function App() {
       <SongPlayer open={songOpen} url={store.config.songs?.[unitId] || ''} title={SONG_BY_ID[unitId]?.title || ''} onClose={() => setSongOpen(false)} />
 
       {/* 내 보상 (별 잔액·내 보상 카드·결과 화면의 별을 누르면) */}
+      {play.dialog}
       <AceRewardsSheet open={rewardsOpen && screen === 'child'} onClose={() => setRewardsOpen(false)} childName={name} subject="english" badges={BADGES} />
 
       {/* 번 별 10개마다 축하 */}

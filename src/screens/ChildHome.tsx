@@ -6,6 +6,7 @@ import { BADGES, useStore } from '../engine/store';
 import { useWallet } from '../ace/wallet';
 import { AceNav } from '../ace/AceNav';
 import { AceRewardCards } from '../ace/Rewards';
+import { PlayBadge } from '../ace/playground';
 import { STAGE_BY_ID } from '../engine/numbers';
 import { hasEnglishVoice, onVoicesChanged } from '../engine/speech';
 import { loadRound } from '../engine/resume';
@@ -19,6 +20,9 @@ interface Props {
   onDogam: () => void;
   onDaily: () => void;
 }
+
+/** 골라 하는 놀이터 항목 이름 (하루 2번 그냥, 그 뒤로 별 1개) */
+export const PLAY_LABEL: Partial<Record<MenuId, string>> = { numbers: '숫자 영어', phrases: '오늘의 한 마디', songs: '주제 여행', phonics: '소리 탐정', speak: '따라 말하기' };
 
 const MENUS: { id: MenuId; label: string; sub: string; icon: React.ReactNode; ready: boolean }[] = [
   { id: 'numbers', label: '숫자 영어', sub: '큰 숫자도 척척', icon: <span className="en text-xl leading-none">123</span>, ready: true },
@@ -114,6 +118,7 @@ export default function ChildHome({ onParent, onMenu, onResume, onRewards, onDog
                   <div className="min-w-0">
                     <div className="font-black text-base text-slate-700">{m.label}</div>
                     <div className="text-xs font-bold text-slate-400">{m.sub}</div>
+                    <PlayBadge subject="english" item={m.id} />
                   </div>
                 </motion.button>
               ))}
