@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt, numberParts, numWords } from '../engine/numbers';
+import { fmt, numberParts, numWords, ordLabel, ordWords } from '../engine/numbers';
 import { speak, speakParts } from '../engine/speech';
 
 /** 덩어리마다 다른 색 (thousand · hundred · 나머지) */
@@ -18,10 +18,23 @@ interface Props {
   hi?: [number, number];
   /** 숫자 아래에 영어 단어 (스펠링 보여 주기) */
   words?: boolean;
+  /** 서수로 보여 주기 (3rd · third) */
+  ord?: boolean;
   className?: string;
 }
 
-export function NumberView({ value, colored = false, labels = false, active = -1, hi, words = false, className = '' }: Props) {
+export function NumberView({ value, colored = false, labels = false, active = -1, hi, words = false, ord = false, className = '' }: Props) {
+  if (ord) {
+    const l = ordLabel(value), num = String(value);
+    return (
+      <div className={`flex flex-col items-center ${className}`}>
+        <div className="en font-bold leading-none flex items-end text-slate-900" aria-label={`${l} ${ordWords(value)}`}>
+          {num}<span className={`text-[0.55em] pb-[0.08em] ${colored ? 'text-brand-600' : 'text-slate-500'}`}>{l.slice(num.length)}</span>
+        </div>
+        {words && <div className="en text-base font-medium text-slate-500 mt-2 break-words text-center">{ordWords(value)}</div>}
+      </div>
+    );
+  }
   const s = fmt(value);
   const parts = numberParts(value);
   const partOf = (i: number) => parts.findIndex(p => i >= p.range[0] && i < p.range[1]);
@@ -54,11 +67,12 @@ export function NumberView({ value, colored = false, labels = false, active = -1
   );
 }
 
-/** 보통 듣기 (다 읽으면 onEnd) */
-export const sayNumber = (n: number, onEnd?: () => void) => speak(numWords(n), onEnd);
+/** 보통 듣기 (다 읽으면 onEnd). ord면 서수로 */
+export const sayNumber = (n: number, onEnd?: () => void, ord = false) => speak(ord ? ordWords(n) : numWords(n), onEnd);
 
 /** 끊어 듣기: 덩어리로 끊어 읽으며 setActive로 지금 읽는 덩어리를 알려 줌 */
-export function sayNumberSlow(n: number, setActive?: (i: number) => void) {
+export function sayNumberSlow(n: number, setActive?: (i: number) => void, ord = false) {
+  if (ord) { setActive?.(0); speak(ordWords(n), () => setActive?.(-1)); return; }
   const parts = numberParts(n);
   speakParts(parts.map(p => p.text), i => setActive?.(i));
 }

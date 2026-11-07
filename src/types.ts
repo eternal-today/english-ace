@@ -2,7 +2,7 @@
 export type MenuId = 'numbers' | 'phrases' | 'songs' | 'phonics' | 'speak';
 
 /** 숫자 영어 단계: 1~100 / 100~999 / 1,000~9,999 */
-export type NumStage = 'n100' | 'n999' | 'n9999';
+export type NumStage = 'n100' | 'n999' | 'n9999' | 'n999k' | 'ord';
 
 /**
  * listen 소리 듣고 숫자 고르기
@@ -24,6 +24,7 @@ export interface Question {
   answer: string;        // 정답 key
   hi?: [number, number]; // place: 색칠할 글자 범위 (쉼표 포함 표기 기준, 끝은 포함 안 함)
   isReview?: boolean;    // 복습 차례로 나온 문제
+  ord?: boolean;         // 서수 문제 (3rd, third)
 }
 
 export interface RoundItem {
@@ -66,6 +67,13 @@ export interface Config {
   voiceURI: string;       // 고른 영어 목소리 (비우면 미국 영어 자동)
   songs: Record<string, string>;   // 주제 여행 단원별 유튜브 주소 (부모님이 넣음)
   speakPerDay: number;    // 따라 말하기를 하루에 몇 번 할 수 있는지 (한 번에 5개, 0이면 끔)
+  /** 학습 범위: 부모님이 먼저 열어 준 만큼 (0이면 저절로 열리는 대로) */
+  openPhrases: number;    // 오늘의 한 마디 단계
+  openSongs: number;      // 노래 곡 수
+  openTopics: number;     // 주제 단어 단원 수
+  openPhonics: number;    // 소리 탐정 묶음 수
+  /** 오늘의 한 판에 섞을 메뉴 */
+  mix: { numbers: boolean; phrases: boolean; songs: boolean; phonics: boolean };
 }
 
 export interface Progress {

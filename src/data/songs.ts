@@ -21,6 +21,8 @@ export interface SongUnit {
   id: string;
   title: string;
   known: boolean;      // 아이가 이미 아는 노래
+  topic?: boolean;     // 노래 없는 주제 단어 단원 (가사·영상 없음)
+  ko?: string;         // 주제 단원의 한국어 이름
   words: SongWord[];
   lyrics: LyricLine[];
 }
@@ -155,11 +157,42 @@ export const SONGS: SongUnit[] = [
   },
 ];
 
-export const SONG_BY_ID = Object.fromEntries(SONGS.map(s => [s.id, s])) as Record<string, SongUnit>;
+/**
+ * 주제 단어 단원 (2026-11-07 추가) — 노래 없이 생활 단어. 설계 목표 "초3 전 생활 단어 100~150개"를 채움.
+ * 그림(이모지)은 오래된 태블릿에서도 나오는 것만 (2018년 이전 이모지). 그림 하나로 뜻이 분명한 단어만.
+ */
+const T = (id: string, title: string, ko: string, words: SongWord[]): SongUnit => ({ id, title, ko, known: false, topic: true, words, lyrics: [] });
+export const TOPICS: SongUnit[] = [
+  T('t-body', 'My Body', '몸', [W('eye', '👁️', '눈'), W('ear', '👂', '귀'), W('nose', '👃', '코'), W('mouth', '👄', '입'), W('tooth', '🦷', '이'), W('tongue', '👅', '혀'),
+    W('hand', '✋', '손'), W('arm', '💪', '팔'), W('leg', '🦵', '다리'), W('foot', '🦶', '발'), W('face', '🙂', '얼굴')]),
+  T('t-food', 'Food', '음식', [W('apple', '🍎', '사과'), W('banana', '🍌', '바나나'), W('grapes', '🍇', '포도'), W('strawberry', '🍓', '딸기'), W('watermelon', '🍉', '수박'),
+    W('bread', '🍞', '빵'), W('milk', '🥛', '우유'), W('egg', '🥚', '달걀'), W('cheese', '🧀', '치즈'), W('pizza', '🍕', '피자'), W('cake', '🎂', '케이크'),
+    W('cookie', '🍪', '쿠키'), W('rice', '🍚', '밥'), W('carrot', '🥕', '당근'), W('ice cream', '🍦', '아이스크림')]),
+  T('t-ride', 'Things That Go', '탈것', [W('car', '🚗', '자동차'), W('bus', '🚌', '버스'), W('train', '🚆', '기차'), W('bike', '🚲', '자전거'), W('airplane', '✈️', '비행기'),
+    W('ship', '🚢', '큰 배'), W('truck', '🚚', '트럭'), W('taxi', '🚕', '택시'), W('helicopter', '🚁', '헬리콥터'), W('rocket', '🚀', '로켓'),
+    W('ambulance', '🚑', '구급차'), W('fire truck', '🚒', '소방차'), W('police car', '🚓', '경찰차'), W('subway', '🚇', '지하철')]),
+  T('t-color', 'Colors', '색깔', [W('red', '❤️', '빨강'), W('orange', '🧡', '주황'), W('yellow', '💛', '노랑'), W('green', '💚', '초록'), W('blue', '💙', '파랑'),
+    W('purple', '💜', '보라'), W('black', '🖤', '검정'), W('pink', '💗', '분홍')]),
+  T('t-family', 'My Family', '가족', [W('mom', '👩', '엄마'), W('dad', '👨', '아빠'), W('baby', '👶', '아기'), W('grandma', '👵', '할머니'), W('grandpa', '👴', '할아버지'),
+    W('sister', '👧', '언니·누나·여동생'), W('brother', '🧒', '형·오빠·남동생'), W('family', '👪', '가족')]),
+  T('t-clothes', 'Clothes', '옷', [W('shirt', '👕', '티셔츠'), W('pants', '👖', '바지'), W('dress', '👗', '원피스'), W('hat', '🎩', '모자'), W('cap', '🧢', '야구 모자'),
+    W('socks', '🧦', '양말'), W('shoes', '👟', '운동화'), W('coat', '🧥', '외투'), W('gloves', '🧤', '장갑'), W('scarf', '🧣', '목도리'), W('glasses', '👓', '안경'), W('boots', '👢', '부츠')]),
+  T('t-school', 'At School', '학교 물건', [W('book', '📕', '책'), W('pencil', '✏️', '연필'), W('crayon', '🖍️', '크레용'), W('scissors', '✂️', '가위'), W('backpack', '🎒', '책가방'),
+    W('ruler', '📏', '자'), W('paper', '📄', '종이'), W('notebook', '📓', '공책'), W('computer', '💻', '컴퓨터'), W('teacher', '👩‍🏫', '선생님'), W('paint', '🎨', '물감')]),
+  T('t-home', 'At Home', '집 안 물건', [W('bed', '🛏️', '침대'), W('sofa', '🛋️', '소파'), W('bathtub', '🛁', '욕조'), W('toilet', '🚽', '변기'), W('TV', '📺', '텔레비전'),
+    W('phone', '📱', '휴대폰'), W('light', '💡', '전등'), W('cup', '☕', '컵'), W('fork', '🍴', '포크'), W('key', '🔑', '열쇠'), W('clock', '⏰', '시계'), W('door', '🚪', '문')]),
+];
+export const SONG_BY_ID = Object.fromEntries([...SONGS, ...TOPICS].map(s => [s.id, s])) as Record<string, SongUnit>;
+/** 노래와 주제를 번갈아 (오늘의 한 판에서 새 단어를 고르는 순서) */
+export const UNIT_ORDER: SongUnit[] = (() => {
+  const out: SongUnit[] = [];
+  for (let i = 0; i < Math.max(SONGS.length, TOPICS.length); i++) { if (SONGS[i]) out.push(SONGS[i]); if (TOPICS[i]) out.push(TOPICS[i]); }
+  return out;
+})();
 
 /** 단어 사전 (여러 단원에 같은 단어가 있으면 하나로) */
 export const WORDS: Record<string, SongWord> = {};
-for (const s of SONGS) for (const w of s.words) WORDS[w.id] = { ...WORDS[w.id], ...w, sound: WORDS[w.id]?.sound || w.sound };
+for (const s of [...SONGS, ...TOPICS]) for (const w of s.words) WORDS[w.id] = { ...WORDS[w.id], ...w, sound: WORDS[w.id]?.sound || w.sound };
 
 /**
  * 가사 빈칸을 소리로 읽을 때: 빈칸 자리는 "hmm"으로 읽음.

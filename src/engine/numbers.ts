@@ -33,6 +33,23 @@ export function numWords(n: number): string {
 /** 쉼표를 넣은 표기 (4,520) */
 export const fmt = (n: number) => n.toLocaleString('en-US');
 
+/** 서수 (1~20은 단어를 직접, 그 뒤는 쓰지 않지만 안전하게 -th) */
+const ORD = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth',
+  'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'];
+export const ordWords = (n: number) => ORD[n] || numWords(n) + 'th';
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th */
+export function ordLabel(n: number): string {
+  const t = n % 100;
+  const suf = t >= 11 && t <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+  return `${n}${suf}`;
+}
+/** 서수면 서수로, 아니면 기수로 읽기 · 표기 */
+export const wordsOf = (v: number, ord?: boolean) => (ord ? ordWords(v) : numWords(v));
+export const labelOf = (v: number, ord?: boolean) => (ord ? ordLabel(v) : fmt(v));
+/** 기억 상자 카드 번호(ord:3, n999:325)로 읽기 · 표기 */
+export const idWords = (id: string) => wordsOf(Number(id.split(':')[1]), id.startsWith('ord:'));
+export const idLabel = (id: string) => labelOf(Number(id.split(':')[1]), id.startsWith('ord:'));
+
 /** 끊어 읽기 덩어리: 읽을 말 + 표기에서 해당 글자 범위 + 이름표 */
 /**
  * 끊어 듣기에서 -teen / -ty를 음절로 나눠 읽기 (thir · teen, thir · ty).
@@ -85,6 +102,8 @@ export const STAGES: StageInfo[] = [
   { id: 'n100', name: '1 ~ 100', range: [1, 100], concept: 'teen', desc: '이미 아는 숫자로 몸풀기' },
   { id: 'n999', name: '100 ~ 999', range: [100, 999], concept: 'hundred', desc: 'hundred 읽기' },
   { id: 'n9999', name: '1,000 ~ 9,999', range: [1000, 9999], concept: 'comma', desc: '쉼표는 thousand' },
+  { id: 'n999k', name: '10,000 ~ 999,999', range: [10000, 999999], concept: 'tenk', desc: '만은 ten thousand' },
+  { id: 'ord', name: '1st ~ 20th', range: [1, 20], concept: 'ord', desc: '순서 말하기 (first, second…)' },
 ];
 export const STAGE_BY_ID = Object.fromEntries(STAGES.map(s => [s.id, s])) as Record<NumStage, StageInfo>;
 
@@ -101,6 +120,8 @@ export const TEEN_TY_PAIRS = [13, 14, 15, 16, 17, 18, 19].map(a => [a, TEEN_TY[a
 /** 단계 안에서 숫자 하나 고르기. 큰 수는 가끔 0이 든 수(4,020 / 305)를 섞음 */
 export function randomIn(stage: NumStage): number {
   const [lo, hi] = STAGE_BY_ID[stage].range;
+  if (stage === 'ord') return Math.random() < 0.4 ? rand(1, 5) : rand(1, 20);
+  if (stage === 'n999k' && Math.random() < 0.2) return rand(10, 999) * 1000;   // 25,000 · 340,000처럼 딱 떨어지는 수
   if (stage === 'n100' && Math.random() < 0.3) return [13, 14, 15, 16, 17, 18, 19, 30, 40, 50, 60, 70, 80, 90][rand(0, 13)];
   if (stage !== 'n100' && Math.random() < 0.2) {
     const n = rand(lo, hi);
@@ -117,6 +138,13 @@ export function randomIn(stage: NumStage): number {
 export function similarTo(n: number, stage: NumStage): number[] {
   const [lo, hi] = STAGE_BY_ID[stage].range;
   const out = new Set<number>();
+  if (stage === 'ord') {
+    // 서수: 바로 옆 순서, fourth ↔ fourteenth, first · second · third끼리
+    [n - 1, n + 1, n + 10, n - 10].forEach(v => out.add(v));
+    if (n <= 3) [1, 2, 3].forEach(v => out.add(v));
+    out.delete(n);
+    return shuffle([...out].filter(v => v >= lo && v <= hi));
+  }
   const s = String(n);
   const last2 = n % 100;
   if (TEEN_TY[last2]) out.add(n - last2 + TEEN_TY[last2]);
@@ -176,9 +204,10 @@ function placeQuestion(n: number, stage: NumStage, id: string): Question | null 
 
 export function makeQuestion(type: QType, n: number, stage: NumStage, difficulty: number, forceSimilar = 0): Question | null {
   const id = `${stage}:${n}`;
-  if (type === 'place') return stage === 'n100' ? null : placeQuestion(n, stage, id);
-  const opts: Option[] = numberOptions(n, stage, difficulty, forceSimilar).map(v => ({ key: String(v), label: fmt(v) }));
-  return { type, id, value: n, options: opts, answer: String(n) };
+  if (type === 'place') return stage === 'n100' || stage === 'ord' ? null : placeQuestion(n, stage, id);
+  const ord = stage === 'ord';
+  const opts: Option[] = numberOptions(n, stage, difficulty, forceSimilar).map(v => ({ key: String(v), label: labelOf(v, ord) }));
+  return { type, id, value: n, options: opts, answer: String(n), ...(ord ? { ord: true } : {}) };
 }
 
 /** 한 판 만들기: 복습 차례인 숫자(전에 틀렸거나 힌트로 맞힌 것) + 새 숫자 */
@@ -205,7 +234,7 @@ export function planRound(config: Config, cards: Record<string, Card>, stage: Nu
   const types: QType[] = [];
   if (config.modes.listen) types.push('listen', 'listen');
   if (config.modes.say) types.push('say');
-  if (config.modes.place && stage !== 'n100') types.push('place');
+  if (config.modes.place && stage !== 'n100' && stage !== 'ord') types.push('place');
   if (!types.length) types.push('listen');
   const dueSet = new Set(due);
   const qs: Question[] = [];
@@ -220,16 +249,16 @@ export function planRound(config: Config, cards: Record<string, Card>, stage: Nu
 
 /** 문제를 짧은 글로 (기록용) */
 export function questionText(q: Question): string {
-  if (q.type === 'listen') return `듣고 고르기 · ${numWords(q.value)}`;
-  if (q.type === 'say') return `소리 고르기 · ${fmt(q.value)}`;
+  if (q.type === 'listen') return `듣고 고르기 · ${wordsOf(q.value, q.ord)}`;
+  if (q.type === 'say') return `소리 고르기 · ${labelOf(q.value, q.ord)}`;
   const s = fmt(q.value);
   return `붙는 말 · ${s.slice(0, q.hi![0])}[${s.slice(q.hi![0], q.hi![1])}]${s.slice(q.hi![1])}`;
 }
 export function answerText(q: Question): string {
   if (q.type === 'place') return placeLabel(q.answer);
-  return `${fmt(q.value)} ${numWords(q.value)}`;
+  return `${labelOf(q.value, q.ord)} ${wordsOf(q.value, q.ord)}`;
 }
 export function shownAnswer(q: Question, key: string): string {
   if (q.type === 'place') return placeLabel(key);
-  return fmt(Number(key));
+  return labelOf(Number(key), q.ord);
 }

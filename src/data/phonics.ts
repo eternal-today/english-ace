@@ -80,3 +80,26 @@ export const GROUP_CAREFUL: Record<string, { title: string; note: string; say?: 
     { title: 'o는 "아", u는 "어"', note: '이름은 "오", "유"지만 단어 앞에서는 "아", "어" 소리가 나요.', say: ['octopus', 'umbrella'] },
   ],
 };
+
+/**
+ * 단어 읽기 (P4, 2026-11-07) — 글자를 소리로 이어 읽어 단어를 알아맞히기.
+ * 배운 글자(1~3묶음)로만 된, 규칙대로 읽히는 짧은 단어만 (silent e, 긴 모음 단어는 뺌).
+ * 그림 하나로 뜻이 분명하고 오래된 기기에도 나오는 이모지만.
+ */
+export interface ReadWord { word: string; emoji: string; ko: string }
+const R = (word: string, emoji: string, ko: string): ReadWord => ({ word, emoji, ko });
+export const READ_WORDS: ReadWord[] = [
+  // 1묶음 s a t p i n
+  R('pan', '🍳', '프라이팬'), R('pin', '📌', '압정'), R('nap', '😴', '낮잠'), R('ant', '🐜', '개미'), R('tin', '🥫', '깡통'),
+  // + 2묶음 c k e h r m d
+  R('cat', '🐱', '고양이'), R('hat', '🎩', '모자'), R('map', '🗺️', '지도'), R('man', '👨', '남자'), R('hen', '🐔', '암탉'), R('pen', '🖊️', '펜'),
+  R('ten', '🔟', '열'), R('net', '🥅', '그물'), R('cap', '🧢', '야구 모자'), R('rat', '🐀', '쥐'), R('kid', '🧒', '아이'), R('tent', '⛺', '텐트'),
+  R('hand', '✋', '손'), R('mask', '😷', '마스크'),
+  // + 3묶음 g o u l f b
+  R('dog', '🐶', '강아지'), R('pig', '🐷', '돼지'), R('bus', '🚌', '버스'), R('bug', '🐛', '벌레'), R('sun', '☀️', '해'), R('cup', '🥤', '컵'),
+  R('hug', '🤗', '안아 주기'), R('bat', '🦇', '박쥐'), R('bag', '👜', '가방'), R('frog', '🐸', '개구리'), R('crab', '🦀', '게'), R('drum', '🥁', '북'),
+  R('gift', '🎁', '선물'), R('sled', '🛷', '썰매'), R('lips', '👄', '입술'), R('leg', '🦵', '다리'), R('bell', '🔔', '종'), R('pot', '🍲', '냄비'),
+  R('nut', '🥜', '땅콩'), R('sock', '🧦', '양말'), R('duck', '🦆', '오리'), R('clock', '🕰️', '시계'), R('truck', '🚚', '트럭'), R('plug', '🔌', '플러그'),
+  R('hotdog', '🌭', '핫도그'),
+];
+export const READ_BY_WORD = Object.fromEntries(READ_WORDS.map(w => [w.word, w])) as Record<string, ReadWord>;

@@ -3,20 +3,21 @@ import { motion } from 'motion/react';
 import { ArrowLeft, BookOpen, ChevronRight, Lock, MessageCircle, Stamp, Volume2 } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { allItems, fillOf, levelProgress, openLevel, poolItems, resolve } from '../engine/phrases';
-import { MAX_LEVEL, PhraseItem, koFilled } from '../data/phrases';
+import { LEVEL_NAME, MAX_LEVEL, PhraseItem, koFilled } from '../data/phrases';
 import { dayIndex, toneOf } from '../engine/srs';
 import { speak, speakParts } from '../engine/speech';
 import { CloseButton, Sheet } from '../components/ui';
 import { SceneArt } from '../components/SceneArt';
+import { phraseLevelOf } from '../engine/scope';
 import { VoiceButton } from '../components/VoiceButton';
 
-const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야', 3: '놀이·차례 · 유치원에서', 4: '허락·도움 · 주고받기 · 색깔', 5: '먹을 때 · 몸과 마음' };
 
 /** 오늘의 한 마디 — 시작 화면 */
 export function PhraseHome({ onBack, onStart, onDogam }: { onBack: () => void; onStart: () => void; onDogam: () => void }) {
-  const { config, cards, custom, preview } = useStore();
+  const store = useStore();
+  const { config, cards, custom, preview } = store;
   const f = fillOf(config);
-  const level = preview ? MAX_LEVEL : openLevel(cards, f);
+  const level = phraseLevelOf(store);
   const pool = poolItems(custom, level, f);
   const today = dayIndex();
   const due = pool.filter(p => cards['ph:' + p.id] && cards['ph:' + p.id].due <= today && cards['ph:' + p.id].box < 5).length;
@@ -81,9 +82,10 @@ export function PhraseHome({ onBack, onStart, onDogam }: { onBack: () => void; o
 
 /** 표현 도감 — 만난 상황이 모임. 회색(익히는 중) → 색(익힘) → 금테(완전히 익힘), 들었어요 도장 */
 export function PhraseDogam({ onBack }: { onBack: () => void }) {
-  const { config, cards, custom, heard, preview } = useStore();
+  const store = useStore();
+  const { config, cards, custom, heard, preview } = store;
   const f = fillOf(config);
-  const level = preview ? MAX_LEVEL : openLevel(cards, f);
+  const level = phraseLevelOf(store);
   const [open, setOpen] = useState<PhraseItem | null>(null);
   const items = allItems(custom).filter(p => p.custom || p.level <= level).map(p => resolve(p, f)).filter((p): p is PhraseItem => !!p);
   const groups = [...new Set(items.map(p => p.group))];

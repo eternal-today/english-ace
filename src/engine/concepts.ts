@@ -16,6 +16,7 @@ export interface ConceptNote {
   howExample: number;        // 덩어리로 보여 주고 끊어 읽기
   careful: Careful[];        // ③
   check: () => Question[];   // ④
+  ord?: boolean;             // 서수 개념 (3rd · third로 보여 주고 읽기)
 }
 
 export const CONCEPTS: ConceptNote[] = [
@@ -66,6 +67,38 @@ export const CONCEPTS: ConceptNote[] = [
       { wrong: '1,000 = thousand', right: '1,000 = one thousand', note: '1,000은 앞에 one을 붙여요.', play: [1000] },
     ],
     check: () => [2300, 7045, 5618].map(n => makeQuestion('listen', n, 'n9999', 1)!),
+  },
+  {
+    id: 'tenk', stage: 'n999k', title: '만은 ten thousand',
+    core: '쉼표 앞이 두 자리, 세 자리여도 똑같아요. 쉼표 앞 숫자를 읽고 thousand를 붙여요.',
+    coreExamples: [10000, 25000, 100000, 999999],
+    how: [
+      '36 , 500 에서 쉼표 앞 36 → thirty-six thousand',
+      '500 → five hundred',
+      '이어서 읽으면 thirty-six thousand five hundred',
+    ],
+    howExample: 36500,
+    careful: [
+      { wrong: '20,000 = two thousand', right: '20,000 = twenty thousand', note: '쉼표 앞이 20이니까 twenty thousand예요. two thousand는 2,000이에요.', play: [20000, 2000] },
+      { wrong: '100,000 = ten thousand', right: '100,000 = one hundred thousand', note: '쉼표 앞이 100이에요. ten thousand는 10,000(만)이고, 100,000은 십만이에요.', play: [100000, 10000] },
+    ],
+    check: () => [45000, 120300, 80015].map(n => makeQuestion('listen', n, 'n999k', 1)!),
+  },
+  {
+    id: 'ord', stage: 'ord', title: '순서 말하기 (first, second…)', ord: true,
+    core: '"몇 번째"는 숫자와 다르게 말해요. 대부분 끝에 -th를 붙여요. 1st처럼 숫자 뒤에 작은 글자를 붙여 써요.',
+    coreExamples: [1, 2, 3, 4, 10, 20],
+    how: [
+      '1st first · 2nd second · 3rd third 는 모양이 달라요',
+      '4th부터는 끝에 -th: four → fourth, six → sixth',
+      '20th는 y를 ie로 바꿔요: twenty → twentieth',
+    ],
+    howExample: 3,
+    careful: [
+      { wrong: '5th = fiveth', right: '5th = fifth', note: '5는 five가 아니라 fif-로 바뀌어요. 12도 twelfth예요.', play: [5, 12] },
+      { wrong: '4th = fourteenth', right: '4th = fourth', note: 'fourth(4번째)와 fourteenth(14번째)는 비슷해요. 끝에 -teen이 있는지 잘 들어요.', play: [4, 14] },
+    ],
+    check: () => [2, 5, 13].map(n => makeQuestion('listen', n, 'ord', 1)!),
   },
 ];
 export const CONCEPT_BY_STAGE = Object.fromEntries(CONCEPTS.map(c => [c.stage, c])) as Record<NumStage, ConceptNote>;

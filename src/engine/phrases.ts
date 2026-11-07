@@ -16,7 +16,7 @@ import { shuffle } from './numbers';
  */
 export type PType = 'odd' | 'scene' | 'meaning' | 'reply'
   | 'wlisten' | 'wsee' | 'lyric' | 'sound'   // 주제 여행 (engine/songs.ts)
-  | 'pfirst' | 'pmatch' | 'pcase'             // 소리 탐정 (engine/phonics.ts)
+  | 'pfirst' | 'pmatch' | 'pcase' | 'pread'   // 소리 탐정 (engine/phonics.ts)
   | 'num';                                    // 숫자 영어 (오늘의 한 판에서만, engine/daily.ts)
 
 export interface POption {

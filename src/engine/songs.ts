@@ -6,7 +6,7 @@
  * sound   동물 소리를 듣고 누구 소리인지 고르기 (Old MacDonald)
  */
 import { Card, Config } from '../types';
-import { LyricLine, SONGS, SONG_BY_ID, SongUnit, WORDS, lyricSpoken } from '../data/songs';
+import { LyricLine, SONGS, SONG_BY_ID, SongUnit, TOPICS, WORDS, lyricSpoken } from '../data/songs';
 import { POption, PQuestion, PType } from './phrases';
 import { dayIndex } from './srs';
 import { shuffle } from './numbers';
@@ -113,14 +113,29 @@ export function planSongRound(config: Config, cards: Record<string, Card>, unitI
  * 열린 노래 수: 처음 세 곡은 열려 있고, 앞 노래 단어를 80% 이상 만나면 다음 노래가 저절로 열림
  * (부모님이 일일이 열어 주지 않아도 되게. 오늘의 한 판은 노래 순서대로 새 단어를 내므로 따로 막지 않음)
  */
-export function openSongCount(cards: Record<string, Card>): number {
-  let n = Math.min(3, SONGS.length);   // Old MacDonald, Hey Diddle Diddle, Twinkle (아는 노래)는 처음부터
-  while (n < SONGS.length) {
-    const p = unitProgress(cards, SONGS[n - 1].id);
+export function openSongCount(cards: Record<string, Card>, parentOpen = 0): number {
+  return openCount(SONGS, cards, 3, parentOpen);   // Old MacDonald, Hey Diddle Diddle, Twinkle (아는 노래)는 처음부터
+}
+/** 열린 주제 단원 수: 처음 두 단원(몸, 음식)이 열려 있고, 앞 단원 단어를 80% 이상 만나면 다음 단원이 열림 */
+export function openTopicCount(cards: Record<string, Card>, parentOpen = 0): number {
+  return openCount(TOPICS, cards, 2, parentOpen);
+}
+function openCount(units: SongUnit[], cards: Record<string, Card>, first: number, parentOpen: number): number {
+  let n = Math.min(first, units.length);
+  while (n < units.length) {
+    const p = unitProgress(cards, units[n - 1].id);
     if (p.met / p.total < 0.8) break;
     n++;
   }
-  return n;
+  return Math.min(units.length, Math.max(n, parentOpen));
+}
+/** 이 단원이 열려 있는지 (이미 만난 단어가 있으면 늘 열림) */
+export function unitOpen(cards: Record<string, Card>, unitId: string, songOpen = 0, topicOpen = 0): boolean {
+  const u = SONG_BY_ID[unitId];
+  if (!u) return false;
+  if (unitProgress(cards, unitId).met > 0) return true;
+  const list = u.topic ? TOPICS : SONGS;
+  return list.indexOf(u) < (u.topic ? openTopicCount(cards, topicOpen) : openSongCount(cards, songOpen));
 }
 
 /** 단원 진행 (만난 단어, 익힌 단어) */

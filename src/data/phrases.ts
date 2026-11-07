@@ -11,7 +11,8 @@
  */
 
 export type PhraseGroup = '인사' | '고마워·미안해' | '기분' | '부탁' | '감탄·칭찬' | '나 소개' | '날씨' | '이게 뭐야'
-  | '놀이·차례' | '유치원에서' | '허락·도움' | '주고받기' | '색깔' | '먹을 때' | '몸과 마음' | '우리 집 표현';
+  | '놀이·차례' | '유치원에서' | '허락·도움' | '주고받기' | '색깔' | '먹을 때' | '몸과 마음'
+  | '하루 일과' | '장소' | '좋아하는 것' | '우리 집 표현';
 
 export interface PhraseItem {
   id: string;
@@ -242,9 +243,87 @@ export const PHRASES: PhraseItem[] = [
   { id: 'bd-love', level: 5, group: '몸과 마음', scene: { emoji: '💕', ko: '엄마 아빠에게 마음을 말할 때', icon: '-' },
     answers: ['I love you!', 'I love you, Mom!', 'I love you, Dad!'],
     oddEasy: ['Excuse me.', "It's a dog.", 'Hurry up!'], oddNormal: ['Nice to meet you.', 'Goodbye!', "You're welcome."] },
+  // ── 6단계: 하루 일과 (2026-11-07 추가) ──
+  { id: 'dl-wakeup', level: 6, group: '하루 일과', say: 'Wake up!',
+    answers: ["Okay, I'm up!", 'Five more minutes!', 'Good morning!'],
+    oddEasy: ['Happy birthday!', 'My turn!', "It's a cat."], oddNormal: ['Good night!', 'Sweet dreams!', 'See you tomorrow!'] },
+  { id: 'dl-brush', level: 6, group: '하루 일과', say: 'Brush your teeth.',
+    answers: ['Okay!', 'I will.', 'Okay, Mom!'],
+    oddEasy: ['Happy birthday!', 'I won!', "It's a cat."], oddNormal: ["You're welcome.", 'Nice to meet you.', 'Good game!'] },
+  { id: 'dl-wash', level: 6, group: '하루 일과', scene: { emoji: '🧼', ko: '밥 먹기 전에', icon: '-' },
+    answers: ["Let's wash our hands.", 'I washed my hands.', 'Wash your hands!'],
+    oddEasy: ['Good night!', 'Hooray!', "It's snowy."], oddNormal: ["I'm full.", 'Good game!', 'See you tomorrow!'] },
+  { id: 'dl-dress', level: 6, group: '하루 일과', say: 'Get dressed.',
+    answers: ['Okay!', 'Where are my socks?', "I'm ready!"],
+    oddEasy: ['Happy birthday!', 'Yummy!', "It's a duck."], oddNormal: ['Good night!', "I'm full.", "You're welcome."] },
+  { id: 'dl-leave', level: 6, group: '하루 일과', scene: { emoji: '🎒', ko: '유치원에 가려고 집을 나설 때', icon: '-' },
+    answers: ['Bye, Mom!', 'See you later!', "I'll be back!"],
+    oddEasy: ['Yummy!', 'My turn!', 'Thank you!'], oddNormal: ['Good night!', 'Welcome home!', "I'm home!"] },
+  { id: 'dl-back', level: 6, group: '하루 일과', scene: { emoji: '🏠', ko: '집에 돌아왔을 때', icon: '-' },
+    answers: ["I'm home!", 'Hello, Mom!', "I'm back!"],
+    oddEasy: ['Happy birthday!', 'Be careful!', "It's a cow."], oddNormal: ['Bye, Mom!', 'See you later!', 'Good night!'] },
+  { id: 'dl-welcome', level: 6, group: '하루 일과', say: "I'm home!",
+    answers: ['Welcome home!', 'Hello!', 'How was your day?'],
+    oddEasy: ['Excuse me.', 'Yummy!', "It's red."], oddNormal: ['Goodbye!', 'See you later!', 'Good night!'] },
+  { id: 'dl-day', level: 6, group: '하루 일과', say: 'How was your day?',
+    answers: ['It was good!', 'It was fun!', 'It was great!', 'I had fun!'],
+    oddEasy: ['Good night!', 'Happy birthday!', 'Excuse me.'], oddNormal: ["I'm fine, thank you.", "It's a cat.", 'Nice to meet you.'] },
+  { id: 'dl-bath', level: 6, group: '하루 일과', scene: { emoji: '🛁', ko: '목욕할 때', icon: '-' },
+    answers: ["It's bath time!", 'The water is warm.', 'I love bath time!'],
+    oddEasy: ['Good morning!', 'My turn!', "It's a pig."], oddNormal: ["Let's eat!", 'Bye, Mom!', 'Hurry up!'] },
+  { id: 'dl-tidy', level: 6, group: '하루 일과', say: 'Clean up your toys.',
+    answers: ['Okay!', "I'm cleaning up.", 'Can you help me?'],
+    oddEasy: ['Happy birthday!', 'Yummy!', "It's blue."], oddNormal: ['Thank you!', 'Good game!', "You're welcome."] },
+  { id: 'dl-late', level: 6, group: '하루 일과', say: "Hurry up, we're late!",
+    answers: ["I'm coming!", 'Wait for me!', 'Okay, coming!'],
+    oddEasy: ['Good night!', 'Yummy!', "It's blue."], oddNormal: ['Take your time.', 'Sweet dreams!', "Let's play again!"] },
+
+  // ── 7단계: 장소 ──
+  { id: 'go-where', level: 7, group: '장소', say: 'Where are you going?',
+    answers: ["I'm going to the park.", "I'm going home.", "I'm going to school."],
+    oddEasy: ['Yummy!', 'Bless you!', 'Happy birthday!'], oddNormal: ["It's sunny.", "It's red.", "I'm fine, thank you."] },
+  { id: 'go-park', level: 7, group: '장소', scene: { emoji: '🛝', ko: '놀이터에서', icon: '-' },
+    answers: ["Let's go down the slide!", 'Push me on the swing, please.', "Let's play tag!"],
+    oddEasy: ['Good night!', 'Bless you!', "It's a cow."], oddNormal: ["Let's eat!", 'Wash your hands!', "I'm sleepy."] },
+  { id: 'go-store', level: 7, group: '장소', scene: { emoji: '🛒', ko: '가게에서 물건을 살 때', icon: '-' },
+    answers: ['How much is it?', 'I want this one.', 'Can I have this, please?'],
+    oddEasy: ['Good night!', 'Bless you!', 'My turn!'], oddNormal: ['Good game!', 'Sweet dreams!', 'Look at my picture!'] },
+  { id: 'go-lost', level: 7, group: '장소', say: 'Are you lost?',
+    answers: ['Yes, I am.', "I can't find my mom.", 'Help me, please.'],
+    oddEasy: ['Yummy!', 'Happy birthday!', 'I won!'], oddNormal: ["You're welcome.", 'Nice to meet you.', "It's my turn."] },
+  { id: 'go-zoo', level: 7, group: '장소', say: 'What do you see?', scene: { emoji: '🦒', ko: '동물원에서', icon: '-' },
+    answers: ['I see a lion.', 'I see an elephant!', 'I see a monkey.'],
+    oddEasy: ['Good night!', 'Bless you!', 'Excuse me.'], oddNormal: ["It's sunny.", "It's red.", "I'm full."] },
+  { id: 'go-library', level: 7, group: '장소', say: "Let's go to the library.",
+    answers: ['Okay!', "Let's go!", 'I want to read books.'],
+    oddEasy: ['Bless you!', 'Happy birthday!', "It's a pig."], oddNormal: ["I'm full.", 'Good night!', "It's red."] },
+  // ── 7단계: 좋아하는 것 ──
+  { id: 'lk-color', level: 7, group: '좋아하는 것', say: "What's your favorite color?",
+    answers: ['I like blue.', 'My favorite color is red.', 'Pink!'],
+    oddEasy: ['Good night!', 'Bless you!', 'Excuse me.'], oddNormal: ["It's a dog.", "It's sunny.", "I'm fine, thank you."] },
+  { id: 'lk-food', level: 7, group: '좋아하는 것', say: "What's your favorite food?",
+    answers: ['I like pizza.', 'My favorite food is rice.', 'Ice cream!'],
+    oddEasy: ['Good night!', 'Bless you!', 'Excuse me.'], oddNormal: ["It's blue.", "It's a cat.", "I'm fine, thank you."] },
+  { id: 'lk-animal', level: 7, group: '좋아하는 것', say: 'What animal do you like?',
+    answers: ['I like dogs.', 'I like cats.', 'Tigers!'],
+    oddEasy: ['Good night!', 'Happy birthday!', 'Excuse me.'], oddNormal: ["It's red.", 'I like pizza.', "It's sunny."] },
+  { id: 'lk-dogs', level: 7, group: '좋아하는 것', say: 'Do you like dogs?',
+    answers: ['Yes, I do.', 'I love dogs!', "No, I don't."],
+    oddEasy: ['Good night!', 'Hurry up!', 'Excuse me.'], oddNormal: ["It's a dog.", "It's red.", "I'm fine, thank you."] },
+  { id: 'lk-play', level: 7, group: '좋아하는 것', say: 'What do you want to play?',
+    answers: ["Let's play tag!", "Let's play with blocks.", 'Hide and seek!'],
+    oddEasy: ['Good night!', 'Bless you!', 'Excuse me.'], oddNormal: ["I'm full.", "It's blue.", "I'm fine, thank you."] },
+  { id: 'lk-love', level: 7, group: '좋아하는 것', scene: { emoji: '🧸', ko: '제일 좋아하는 것을 말할 때', icon: '-' },
+    answers: ['I love it!', "It's my favorite!", 'I like it a lot.'],
+    oddEasy: ['Excuse me.', 'Good night!', 'Bless you!'], oddNormal: ["I don't like it.", 'Oh no!', "I'm sorry."] },
+  { id: 'lk-dislike', level: 7, group: '좋아하는 것', scene: { emoji: '🥦', ko: '싫어하는 음식이 나왔을 때', icon: '-' },
+    answers: ["I don't like it.", 'No, thank you.', 'Yuck!'],
+    oddEasy: ['Happy birthday!', 'My turn!', 'Good morning!'], oddNormal: ['Yummy!', "It's delicious!", 'I love it!'] },
 ];
 
 export const MAX_LEVEL = Math.max(...PHRASES.map(p => p.level));
+/** 단계 이름 (메뉴·부모님 화면) */
+export const LEVEL_NAME: Record<number, string> = { 1: '인사 · 고마워 · 기분 · 부탁 · 감탄', 2: '나 소개 · 날씨 · 이게 뭐야', 3: '놀이·차례 · 유치원에서', 4: '허락·도움 · 주고받기 · 색깔', 5: '먹을 때 · 몸과 마음', 6: '하루 일과', 7: '장소 · 좋아하는 것' };
 
 /** 한국어 뜻 (보기 아래에 보여 주고, 엉뚱한 대답을 고른 뒤 "언제 쓰는 말인지" 알려 줄 때 씀) */
 export const KO: Record<string, string> = {
@@ -299,6 +378,25 @@ export const KO: Record<string, string> = {
   'I fell down.': '넘어졌어요', 'Are you hurt?': '다쳤어?', 'Bless you!': '몸조심해! (재채기한 사람에게 하는 말)',
   "It's cold!": '추워!', "I'm cold.": '나 추워', "It's so cold!": '너무 추워!', "It's hot!": '더워!', "I'm hot.": '나 더워', "It's so hot!": '너무 더워!',
   'Look at my picture!': '내 그림 봐!', "It's beautiful!": '예쁘다!', 'I like it!': '마음에 들어!', 'I love you!': '사랑해요!', 'I love you, Mom!': '엄마, 사랑해요!', 'I love you, Dad!': '아빠, 사랑해요!',
+  // 6~7단계 (2026-11-07)
+  'Wake up!': '일어나!', "Okay, I'm up!": '네, 일어났어요!', 'Five more minutes!': '5분만 더요!', 'Brush your teeth.': '이 닦아라',
+  'I will.': '그럴게요', 'Okay, Mom!': '네, 엄마!', "Let's wash our hands.": '손 씻자', 'I washed my hands.': '손 씻었어요', 'Wash your hands!': '손 씻어!',
+  'Get dressed.': '옷 입어라', 'Where are my socks?': '내 양말 어디 있어요?', "I'm ready!": '준비됐어요!', 'Bye, Mom!': '엄마, 다녀올게요!',
+  "I'll be back!": '다녀올게요!', 'Welcome home!': '어서 와! (집에 온 걸 반길 때)', "I'm home!": '다녀왔습니다!', 'Hello, Mom!': '엄마, 안녕!', "I'm back!": '돌아왔어요!',
+  'How was your day?': '오늘 하루 어땠어?', 'It was good!': '좋았어요!', 'It was fun!': '재밌었어요!', 'It was great!': '아주 좋았어요!', 'I had fun!': '재밌었어요!',
+  "It's bath time!": '목욕할 시간이다!', 'The water is warm.': '물이 따뜻해요', 'I love bath time!': '목욕 시간 정말 좋아!',
+  'Clean up your toys.': '장난감 치워라', "I'm cleaning up.": '치우고 있어요', "Hurry up, we're late!": '서둘러, 늦었어!', 'Wait for me!': '나 기다려 줘!', 'Okay, coming!': '네, 가요!',
+  'Where are you going?': '어디 가?', "I'm going to the park.": '공원에 가요', "I'm going home.": '집에 가요', "I'm going to school.": '학교(유치원)에 가요',
+  "Let's go down the slide!": '미끄럼틀 타자!', 'Push me on the swing, please.': '그네 밀어 주세요', "Let's play tag!": '술래잡기하자!',
+  'How much is it?': '이거 얼마예요?', 'I want this one.': '이거 갖고 싶어요', 'Can I have this, please?': '이거 사 주실 수 있어요?',
+  'Are you lost?': '길을 잃었니?', 'Yes, I am.': '네, 그래요', "I can't find my mom.": '엄마를 못 찾겠어요', 'What do you see?': '뭐가 보여?',
+  'I see a lion.': '사자가 보여요', 'I see an elephant!': '코끼리가 보여요!', 'I see a monkey.': '원숭이가 보여요', "Let's go to the library.": '도서관에 가자',
+  'I want to read books.': '책 읽고 싶어요', "What's your favorite color?": '제일 좋아하는 색이 뭐야?', 'I like blue.': '파란색을 좋아해요',
+  'My favorite color is red.': '제일 좋아하는 색은 빨강이에요', 'Pink!': '분홍!', "What's your favorite food?": '제일 좋아하는 음식이 뭐야?', 'I like pizza.': '피자를 좋아해요',
+  'My favorite food is rice.': '제일 좋아하는 음식은 밥이에요', 'Ice cream!': '아이스크림!', 'What animal do you like?': '어떤 동물을 좋아해?',
+  'I like dogs.': '강아지를 좋아해요', 'I like cats.': '고양이를 좋아해요', 'Tigers!': '호랑이요!', 'Do you like dogs?': '강아지 좋아해?', 'I love dogs!': '강아지 정말 좋아!',
+  'What do you want to play?': '뭐 하고 놀고 싶어?', "Let's play with blocks.": '블록 놀이 하자', 'Hide and seek!': '숨바꼭질!',
+  "It's my favorite!": '제일 좋아하는 거야!', 'I like it a lot.': '정말 좋아해요', "I don't like it.": '그거 싫어요', 'Yuck!': '윽, 싫어!',
 };
 
 /** 나이를 영어로 (1~12) */

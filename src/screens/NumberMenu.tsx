@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Lock, Play, Search } from 'lucide-react';
 import { NumStage, RoundKind } from '../types';
-import { STAGES, fmt } from '../engine/numbers';
+import { STAGES } from '../engine/numbers';
 import { CONCEPT_BY_STAGE } from '../engine/concepts';
 import { useStore } from '../engine/store';
 import { sayNumber } from '../components/NumberView';
@@ -16,7 +16,9 @@ interface Props {
 /** 숫자 영어 — 단계 고르기 */
 export default function NumberMenu({ onBack, onStart, onConcept }: Props) {
   const { progress, records, preview } = useStore();
-  const open = (id: NumStage) => id === 'n100' || progress.numCheck || preview;
+  // 10,000 이상은 "쉼표에서 끊어 읽기" 개념 정리를 본 뒤에 열림
+  const open = (id: NumStage) => id === 'n100' || preview || (progress.numCheck && (id !== 'n999k' || progress.concepts.includes('comma')));
+  const lockText = (id: NumStage) => (progress.numCheck && id === 'n999k' ? '"쉼표에서 끊어 읽기"를 보면 열려요' : '확인을 통과하면 열려요');
   const lastOf = (id: NumStage) => records.find(r => r.stage === id && r.kind === 'play');
 
   return (
@@ -52,10 +54,10 @@ export default function NumberMenu({ onBack, onStart, onConcept }: Props) {
               <div key={st.id} className={`bg-white rounded-[2rem] border-2 p-5 space-y-3 ${on ? 'border-slate-100 shadow-sm' : 'border-dashed border-slate-200 opacity-60'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <button disabled={!on} onClick={() => sayNumber(st.range[1])} className="en text-3xl text-slate-900 text-left">{st.name}</button>
+                    <button disabled={!on} onClick={() => sayNumber(st.range[1], undefined, st.id === 'ord')} className="en text-3xl text-slate-900 text-left">{st.name}</button>
                     <div className="text-xs font-bold text-slate-400">{st.desc}{last ? ` · 지난번 ${last.correct}/${last.total}` : ''}</div>
                   </div>
-                  {!on && <span className="flex items-center gap-1 text-xs font-black text-slate-400 shrink-0"><Lock size={14} />확인을 통과하면 열려요</span>}
+                  {!on && <span className="flex items-center gap-1 text-xs font-black text-slate-400 shrink-0"><Lock size={14} />{lockText(st.id)}</span>}
                 </div>
                 {on && (
                   <div className="grid grid-cols-2 gap-2">
@@ -74,9 +76,6 @@ export default function NumberMenu({ onBack, onStart, onConcept }: Props) {
           })}
         </div>
 
-        <div className="bg-slate-50 rounded-2xl p-4 text-xs font-bold text-slate-400 leading-relaxed">
-          더 큰 숫자 <span className="en text-slate-500">{fmt(10000)}</span> 이상은 곧 열려요. "쉼표에서 끊어 읽기" 개념 정리를 보고 오면 준비 끝!
-        </div>
       </div>
     </div>
   );

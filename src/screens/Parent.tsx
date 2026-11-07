@@ -3,24 +3,26 @@ import {
   CheckCircle2, ChevronLeft, Eye, ChevronRight, Database, Gift, Hash, History, Home, Lightbulb, Lock,
   Plus, Settings, Scissors, Smartphone, Star, Volume2, XCircle,
 } from 'lucide-react';
-import { Config, RoundRecord } from '../types';
+import { Config, NumStage, RoundRecord } from '../types';
 import { MAX_COUNT, MIN_COUNT, actions, earnedStars, getState, useStore } from '../engine/store';
 import { HINT_COST, couponState, coupons as aceCoupons, hubPin, mathWishCoupons, useWallet } from '../ace/wallet';
 import { goHome } from '../ace/links';
-import { STAGE_BY_ID, fmt, numWords } from '../engine/numbers';
+import { STAGES, STAGE_BY_ID, fmt, idLabel, idWords, numWords } from '../engine/numbers';
 import { canSpeak, englishVoices, onVoicesChanged, setVoiceURI, speak } from '../engine/speech';
-import { dayIndex } from '../engine/srs';
+import { INTERVALS, dayIndex } from '../engine/srs';
 import { toast } from '../components/ui';
 import { sayNumberSlow } from '../components/NumberView';
 import { MessageCircle, Stamp, Trash2 } from 'lucide-react';
-import { PhraseItem } from '../data/phrases';
-import { allItems, fillOf, levelProgress, resolve } from '../engine/phrases';
-import { SONGS, SONG_BY_ID } from '../data/songs';
+import { LEVEL_NAME, MAX_LEVEL, PHRASES, PhraseItem } from '../data/phrases';
+import { allItems, fillOf, levelProgress, openLevel, resolve } from '../engine/phrases';
+import { SONGS, SONG_BY_ID, TOPICS } from '../data/songs';
+import { GROUPS } from '../data/phonics';
+import { openSongCount, openTopicCount, unitProgress, wordCard } from '../engine/songs';
 import { SongPlayer, youtubeId } from '../components/SongPlayer';
-import { Music } from 'lucide-react';
+import { Layers, Music, Shuffle } from 'lucide-react';
 import { clearRound, loadRound } from '../engine/resume';
 import { AceSaveBar, confirmLeave } from '../ace/SaveBar';
-import { groupProgress, openGroups } from '../engine/phonics';
+import { groupProgress, letterCard, openGroups, readProgress } from '../engine/phonics';
 import { Mic, Play } from 'lucide-react';
 import { Clip, MIC_ERROR_TEXT, canRecord, checkMic, clearClips, deleteClip, listClips, onClipsChanged, playClip } from '../engine/voice';
 
@@ -176,7 +178,13 @@ function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =>
   const [blocked, setBlocked] = useState<Record<string, boolean>>({});
   return (
     <Card>
-      <Title icon={<Music size={18} className="text-trust-600" />}>주제 여행 노래</Title>
+      <Title icon={<Music size={18} className="text-trust-600" />}>주제 여행 노래 주소</Title>
+      <details className="group">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-2 bg-slate-50 rounded-xl px-4 py-3">
+          <span className="text-sm font-bold text-slate-700">노래 {SONGS.length}곡 주소 <span className="text-slate-400 font-medium">({SONGS.filter(u => youtubeId(draft.songs?.[u.id] || '')).length}곡 넣음)</span></span>
+          <ChevronRight size={16} className="text-slate-400 transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="space-y-4 pt-3">
       <p className="text-sm text-slate-500 leading-relaxed">
         단원마다 유튜브 주소를 넣어 주세요. 앱 안에서 재생하고 노래가 끝나면 저절로 닫혀서, 추천 영상으로 빠지지 않습니다.
         저작권이 끝난 오래된 동요라도 영상은 만든 채널의 것이라 앱에 담지 않고 주소로만 연결합니다.
@@ -201,40 +209,187 @@ function SongCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) =>
           </div>
         );
       })}
+        </div>
+      </details>
+      <p className="text-[11px] text-slate-400">주제 단어 단원(몸, 음식 등)은 노래 없이 단어만 나옵니다.</p>
       <SongPlayer open={!!preview} url={preview ? draft.songs?.[preview] || '' : ''} title={preview ? SONG_BY_ID[preview].title : ''}
         onClose={() => setPreview(null)} onBlocked={b => preview && setBlocked(x => ({ ...x, [preview]: b }))} />
     </Card>
   );
 }
 
-/** 오늘의 한 마디 — 단계 진행, 표현 추가, 들었어요 도장 (바로 저장됨) */
-/** 소리 탐정 — 묶음별 진행, 먼저 열어 주기 */
-function PhonicsCard() {
-  const { cards, progress } = useStore();
-  const prog = groupProgress(cards);
-  const auto = openGroups(cards, 1);
-  const open = openGroups(cards, progress.phonicsOpen);
+type ScopeTab = 'phrases' | 'songs' | 'phonics' | 'numbers';
+type RowState = 'auto' | 'parent' | 'closed';
+/** 차례대로 열리는 목록에서 k번째 줄을 눌렀을 때: 닫혀 있으면 거기까지 열고, 부모님이 연 줄이면 거기부터 닫음 */
+const stepTo = (k: number, cur: number, auto: number) => (k > cur ? k : k > auto ? k - 1 : cur);
+const stateOf = (k: number, cur: number, auto: number): RowState => (k <= auto ? 'auto' : k <= cur ? 'parent' : 'closed');
+const STATE_PILL: Record<RowState, [string, string]> = {
+  auto: ['저절로 열림', 'bg-emerald-50 text-emerald-600'],
+  parent: ['부모님이 엶', 'bg-trust-50 text-trust-600'],
+  closed: ['닫힘', 'bg-slate-100 text-slate-400'],
+};
+
+function ScopeRow({ name, sub, state, progress, onToggle, onKnown, pill }: {
+  name: React.ReactNode; sub?: React.ReactNode; state: RowState; progress?: string; onToggle?: () => void; onKnown?: () => void; pill?: string;
+}) {
+  const [auto, tone] = STATE_PILL[state];
+  const label = pill || auto;
+  return (
+    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${state === 'closed' ? 'bg-white border-slate-100' : 'bg-white border-trust-100 shadow-sm'}`}>
+      <button disabled={!onToggle || state === 'auto'} onClick={onToggle} className="min-w-0 flex-1 text-left">
+        <div className={`text-sm font-bold ${state === 'closed' ? 'text-slate-400' : 'text-slate-800'}`}>{name}</div>
+        {sub && <div className="text-[11px] text-slate-400 truncate">{sub}</div>}
+      </button>
+      {progress && <span className="text-[10px] font-bold text-slate-400 shrink-0 hidden sm:inline">{progress}</span>}
+      <span className={`text-[10px] font-black px-2 py-1 rounded-md shrink-0 ${tone}`}>{label}</span>
+      {onKnown && <button onClick={onKnown} className="text-[11px] font-bold text-amber-600 border border-amber-200 bg-amber-50 rounded-lg px-2 py-1 shrink-0">알아요</button>}
+    </div>
+  );
+}
+
+/** 학습 범위 — 메뉴마다 어디까지 열지, 이미 아는 것 표시 (한자 에이스 "급수와 묶음 선택"과 같은 자리) */
+function ScopeCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
+  const { cards, progress, config } = useStore();
+  const [tab, setTab] = useState<ScopeTab>('phrases');
+  const f = fillOf(config);
+  const known = (what: string, ids: string[]) => {
+    const fresh = ids.filter(id => (cards[id]?.box || 0) < 4).length;
+    if (!fresh) { toast('이미 모두 아는 것으로 되어 있어요'); return; }
+    if (!window.confirm(`${what} ${fresh}개를 "이미 아는 것"으로 표시합니다.\n도감에 색이 칠해지고 ${INTERVALS[4]}일 뒤 복습으로 한 번씩 나옵니다.\n\n계속할까요?`)) return;
+    toast(`${actions.markKnown(ids)}개를 아는 것으로 표시했어요`);
+  };
+
+  // 오늘의 한 마디
+  const pAuto = openLevel(cards, f);
+  const pCur = Math.min(MAX_LEVEL, Math.max(pAuto, draft.openPhrases || 0));
+  const pProg = levelProgress(cards, f);
+  // 주제 여행
+  const sAuto = openSongCount(cards, 0), sCur = openSongCount(cards, draft.openSongs || 0);
+  const tAuto = openTopicCount(cards, 0), tCur = openTopicCount(cards, draft.openTopics || 0);
+  // 소리 탐정 (예전에 "열어 주기"로 연 것도 그대로 보여 줌)
+  const gAuto = openGroups(cards, 1);
+  const gCur = Math.min(GROUPS.length, Math.max(gAuto, draft.openPhonics || progress.phonicsOpen || 1));
+  const gProg = groupProgress(cards);
+  const rProg = readProgress(cards, gCur);
+  // 숫자 영어
+  const numOpen = (id: NumStage) => id === 'n100' || (progress.numCheck && (id !== 'n999k' || progress.concepts.includes('comma')));
+  const numWhy = (id: NumStage) => (id === 'n100' ? '처음부터' : id === 'n999k' ? '확인 통과 + "쉼표에서 끊어 읽기" 개념 정리를 보면' : '1~100 확인을 통과하면');
+
+  const tabs: [ScopeTab, string][] = [['phrases', '오늘의 한 마디'], ['songs', '주제 여행'], ['phonics', '소리 탐정'], ['numbers', '숫자 영어']];
+  const summary = tab === 'phrases' ? `1~${pCur}단계 · 상황 ${pProg.slice(0, pCur).reduce((n, p) => n + p.total, 0)}개 (만난 것 ${pProg.slice(0, pCur).reduce((n, p) => n + p.met, 0)}개)`
+    : tab === 'songs' ? `노래 ${sCur}곡 · 주제 ${tCur}단원 · 단어 ${[...SONGS.slice(0, sCur), ...TOPICS.slice(0, tCur)].reduce((n, u) => n + u.words.length, 0)}개`
+      : tab === 'phonics' ? `${gCur}묶음 · 글자 ${GROUPS.slice(0, gCur).reduce((n, g) => n + g.letters.length, 0)}개 · 읽을 수 있는 단어 ${rProg.readable}개`
+        : `열린 단계 ${STAGES.filter(st => numOpen(st.id)).length} / ${STAGES.length}`;
+
   return (
     <Card>
-      <Title icon={<Volume2 size={18} className="text-trust-600" />}>소리 탐정</Title>
-      <div className="grid gap-2">
-        {prog.map(g => {
-          const on = g.no <= open;
-          return (
-            <div key={g.id} className="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-400">{g.no}묶음 · <span className="en text-sm text-slate-600">{g.letters.join(' ')}</span></div>
-                <div className="text-sm font-black text-slate-700">{on ? `익힘 ${g.learned} · 만남 ${g.met} / ${g.total}` : '닫혀 있음'}</div>
-              </div>
-              {!on && <button className="btn-secondary px-3 py-2 text-xs shrink-0" onClick={() => {
-                if (window.confirm(`${g.no}묶음을 지금 열어 줄까요? 앞 묶음을 다 익히지 않아도 새 글자로 나오기 시작해요.`)) actions.setProgress({ phonicsOpen: g.no });
-              }}>열어 주기</button>}
-              {on && g.no > auto && g.no === open && <button className="btn-secondary px-3 py-2 text-xs shrink-0" onClick={() => actions.setProgress({ phonicsOpen: g.no - 1 })}>다시 닫기</button>}
-            </div>
-          );
-        })}
+      <Title icon={<Layers size={18} className="text-trust-600" />}>학습 범위</Title>
+      <p className="text-sm text-slate-500 leading-relaxed">
+        앞 단계를 80% 익히면 다음 단계가 저절로 열립니다. 유치원에서 이미 배운 것이 있으면 줄을 눌러 먼저 열어 주고, "알아요"로 표시하면 기억 상자 4칸에서 시작해 새 것으로 나오지 않습니다.
+      </p>
+      <div className="grid grid-cols-4 gap-1.5">
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`py-2.5 rounded-xl border-2 font-bold text-xs sm:text-sm transition-all break-keep ${tab === id ? 'bg-trust-600 border-trust-600 text-white' : 'bg-white border-slate-100 text-slate-500'}`}>{label}</button>
+        ))}
       </div>
-      <p className="text-[11px] text-slate-400 leading-relaxed">한 묶음의 글자를 모두 만나고 80%가 기억 상자 3칸 이상이 되면 다음 묶음이 저절로 열립니다. 아이가 이미 아는 글자라면 먼저 열어 줄 수 있어요. c와 k처럼 소리가 같은 글자는 소리 문제에서 같이 나오지 않습니다.</p>
+
+      <div className="max-h-[26rem] overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1.5 bg-slate-50/50">
+        {tab === 'phrases' && pProg.map(p => (
+          <ScopeRow key={p.level} name={`${p.level}단계`} sub={LEVEL_NAME[p.level]} state={stateOf(p.level, pCur, pAuto)}
+            progress={`익힘 ${p.learned} · 만남 ${p.met}/${p.total}`}
+            onToggle={() => setDraft({ ...draft, openPhrases: stepTo(p.level, pCur, pAuto) })}
+            onKnown={() => known(`${p.level}단계 표현`, PHRASES.filter(x => x.level === p.level && resolve(x, f)).map(x => 'ph:' + x.id))} />
+        ))}
+
+        {tab === 'songs' && <>
+          <div className="text-[11px] font-black text-slate-400 px-1 pt-1">노래 단원</div>
+          {SONGS.map((u, i) => {
+            const up = unitProgress(cards, u.id);
+            return (
+              <ScopeRow key={u.id} name={u.title} sub={u.known ? '아는 노래' : '새 노래'} state={stateOf(i + 1, sCur, sAuto)}
+                progress={`만남 ${up.met}/${up.total}`} onToggle={() => setDraft({ ...draft, openSongs: stepTo(i + 1, sCur, sAuto) })} />
+            );
+          })}
+          <div className="text-[11px] font-black text-slate-400 px-1 pt-2">주제 단어</div>
+          {TOPICS.map((u, i) => {
+            const up = unitProgress(cards, u.id);
+            return (
+              <ScopeRow key={u.id} name={u.ko} sub={<span className="en">{u.words.map(w => w.word).join(', ')}</span>} state={stateOf(i + 1, tCur, tAuto)}
+                progress={`만남 ${up.met}/${up.total}`} onToggle={() => setDraft({ ...draft, openTopics: stepTo(i + 1, tCur, tAuto) })}
+                onKnown={() => known(`"${u.ko}" 단어`, u.words.map(w => wordCard(w.id)))} />
+            );
+          })}
+        </>}
+
+        {tab === 'phonics' && <>
+          {gProg.map(g => (
+            <ScopeRow key={g.id} name={`${g.no}묶음`} sub={<span className="en">{g.letters.join(' ')}</span>} state={stateOf(g.no, gCur, gAuto)}
+              progress={`익힘 ${g.learned} · 만남 ${g.met}/${g.total}`}
+              onToggle={() => setDraft({ ...draft, openPhonics: Math.max(1, stepTo(g.no, gCur, gAuto)) })}
+              onKnown={() => known(`${g.no}묶음 글자 소리`, g.letters.map(letterCard))} />
+          ))}
+          <p className="text-[11px] text-slate-400 px-1 pt-1">단어 읽기는 열린 묶음의 글자를 모두 만나면 그 글자로 된 단어가 저절로 나옵니다. 지금 {rProg.readable} / {rProg.total}개 (만남 {rProg.met}개)</p>
+        </>}
+
+        {tab === 'numbers' && <>
+          {STAGES.map(st => (
+            <ScopeRow key={st.id} name={<span className="en">{st.name}</span>} sub={`${st.desc} · ${numWhy(st.id)}`} state={numOpen(st.id) ? 'auto' : 'closed'} pill={numOpen(st.id) ? '열림' : undefined} />
+          ))}
+          <div className="flex items-center justify-between gap-3 bg-white rounded-xl border border-slate-100 px-3 py-2.5">
+            <span className="text-sm font-bold text-slate-700">{progress.numCheck ? '✅ 1~100 확인을 통과했어요' : '🔒 1~100 확인 전이에요'}</span>
+            <button className="btn-secondary px-3 py-2 text-xs" onClick={() => {
+              actions.setProgress({ numCheck: !progress.numCheck });
+              toast(progress.numCheck ? '다시 잠갔어요' : '확인 없이 큰 숫자를 열었어요');
+            }}>{progress.numCheck ? '다시 잠그기' : '확인 없이 열기'}</button>
+          </div>
+        </>}
+      </div>
+      <div className="bg-trust-50 text-trust-700 text-sm font-bold rounded-xl px-4 py-3">지금 범위: {summary}</div>
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        {tab === 'numbers' ? '숫자 영어는 확인 문제와 개념 정리로 열립니다. "확인 없이 열기"는 바로 적용돼요.'
+          : '줄을 누르면 그 단계까지 열리고, 부모님이 연 줄을 다시 누르면 거기부터 닫혀요. 여닫기는 아래 저장 버튼으로 저장하고, "알아요"는 바로 적용돼요.'}
+        {tab === 'phrases' && ' 2단계의 "What\'s your name?", "How old are you?"는 아이 정보(영어 이름·나이)를 넣어야 나옵니다.'}
+        {tab === 'phonics' && ' c와 k처럼 소리가 같은 글자는 소리 문제에서 같이 나오지 않습니다.'}
+      </p>
+    </Card>
+  );
+}
+
+const Toggle = ({ on, label, desc, onClick, small = false }: { on: boolean; label: string; desc?: string; onClick: () => void; small?: boolean }) => (
+  <button onClick={onClick}
+    className={`w-full text-left px-4 ${small ? 'py-2.5' : 'py-3'} rounded-xl border-2 flex items-center justify-between gap-3 ${on ? 'border-trust-200 bg-trust-50' : 'border-slate-100 bg-white'}`}>
+    <span className="min-w-0">
+      <span className={`text-sm font-bold ${on ? 'text-trust-700' : 'text-slate-400'}`}>{label}</span>
+      {desc && <span className="block text-[11px] text-slate-400">{desc}</span>}
+    </span>
+    <span className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${on ? 'bg-trust-600' : 'bg-slate-200'}`}>
+      <span className={`block w-5 h-5 bg-white rounded-full transition-transform ${on ? 'translate-x-5' : ''}`} />
+    </span>
+  </button>
+);
+
+/** 오늘의 한 판에 섞을 것 + 숫자 문제 유형 */
+function MixCard({ draft, setDraft }: { draft: Config; setDraft: (c: Config) => void }) {
+  const mix = draft.mix;
+  const set = (k: keyof Config['mix']) => setDraft({ ...draft, mix: { ...mix, [k]: !mix[k] } });
+  return (
+    <Card>
+      <Title icon={<Shuffle size={18} className="text-trust-600" />}>오늘의 한 판에 섞을 것</Title>
+      <p className="text-sm text-slate-500 leading-relaxed">끈 메뉴는 오늘의 한 판에 나오지 않습니다. 놀이터에서 고르는 메뉴는 그대로 열려 있어요.</p>
+      <div className="grid gap-2">
+        <Toggle on={mix.phrases} label="오늘의 한 마디" desc="상황에 맞는 말 고르기" onClick={() => set('phrases')} />
+        <Toggle on={mix.songs} label="주제 여행" desc="노래 단어와 주제 단어" onClick={() => set('songs')} />
+        <Toggle on={mix.phonics} label="소리 탐정" desc="글자 소리와 단어 읽기" onClick={() => set('phonics')} />
+        <Toggle on={mix.numbers} label="숫자 영어" desc="1~100 확인을 통과하면 한 판의 20% 안쪽으로 섞어요" onClick={() => set('numbers')} />
+      </div>
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+        <Label>숫자 문제 유형 (숫자 영어 메뉴에도 같이 적용)</Label>
+        {([['listen', '듣고 고르기', '영어 소리를 듣고 숫자 고르기'], ['say', '소리 고르기', '숫자를 보고 맞게 읽은 소리 고르기 (보기를 눌러 들어 봄)'],
+          ['place', '붙는 말 고르기', '색칠한 자리 뒤에 thousand · hundred가 붙는지 고르기 (100 이상, 서수 제외)']] as const).map(([k, label, desc]) => (
+          <Toggle key={k} small on={draft.modes[k]} label={label} desc={desc} onClick={() => setDraft({ ...draft, modes: { ...draft.modes, [k]: !draft.modes[k] } })} />
+        ))}
+      </div>
     </Card>
   );
 }
@@ -242,7 +397,6 @@ function PhonicsCard() {
 function PhraseCard() {
   const { config, cards, custom, heard } = useStore();
   const f = fillOf(config);
-  const prog = levelProgress(cards, f);
   const [ko, setKo] = useState('');
   const [say, setSay] = useState('');
   const [emoji, setEmoji] = useState('');
@@ -264,19 +418,13 @@ function PhraseCard() {
   };
   return (
     <Card>
-      <Title icon={<MessageCircle size={18} className="text-trust-600" />}>오늘의 한 마디</Title>
-      <div className="grid grid-cols-2 gap-2">
-        {prog.map(p => (
-          <div key={p.level} className="bg-slate-50 rounded-xl px-4 py-3">
-            <div className="text-xs font-bold text-slate-400">{p.level}단계</div>
-            <div className="text-sm font-black text-slate-700">익힘 {p.learned} · 만남 {p.met} / {p.total}</div>
-          </div>
-        ))}
-      </div>
-      <p className="text-[11px] text-slate-400 leading-relaxed">한 단계 표현의 80%가 기억 상자 3칸 이상이 되면 다음 단계가 저절로 열립니다. 2단계의 "What's your name?"과 "How old are you?"는 아래 아이 이름(영어)과 나이를 넣어야 나옵니다.</p>
-
-      <div className="space-y-2 pt-2 border-t border-slate-100">
-        <Label>유치원에서 배운 표현 넣기</Label>
+      <Title icon={<MessageCircle size={18} className="text-trust-600" />}>오늘의 한 마디 · 우리 집 표현</Title>
+      <details className="group">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-2 bg-slate-50 rounded-xl px-4 py-3">
+          <span className="text-sm font-bold text-slate-700">유치원에서 배운 표현 넣기 <span className="text-slate-400 font-medium">({custom.length}개 넣음)</span></span>
+          <ChevronRight size={16} className="text-slate-400 transition-transform group-open:rotate-90" />
+        </summary>
+      <div className="space-y-2 pt-3">
         <input className="input-field bg-slate-50" placeholder="상황 (예: 놀이터에서 친구를 만났을 때)" value={ko} onChange={e => setKo(e.target.value)} maxLength={30} />
         <div className="grid grid-cols-[1fr_5rem] gap-2">
           <input className="input-field bg-slate-50" placeholder="상대가 하는 말 (선택, 예: Let's be friends!)" value={say} onChange={e => setSay(e.target.value)} maxLength={60} />
@@ -303,6 +451,7 @@ function PhraseCard() {
           </div>
         )}
       </div>
+      </details>
 
       <div className="space-y-2 pt-2 border-t border-slate-100">
         <Label>"들었어요!" 도장</Label>
@@ -340,7 +489,10 @@ export default function Parent({ onHome }: { onHome: () => void }) {
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(store.config);
   const save = () => {
-    if (!Object.values(draft.modes).some(Boolean)) { toast('문제 유형을 하나 이상 켜 주세요'); return; }
+    if (!Object.values(draft.modes).some(Boolean)) { toast('숫자 문제 유형을 하나 이상 켜 주세요'); return; }
+    if (!Object.values(draft.mix).some(Boolean)) { toast('오늘의 한 판에 섞을 메뉴를 하나 이상 켜 주세요'); return; }
+    // 소리 탐정 여닫기를 학습 범위에서 정했으면, 예전 "열어 주기" 값은 비움
+    if ((draft.openPhonics || 0) !== (store.config.openPhonics || 0) && store.progress.phonicsOpen > 1) actions.setProgress({ phonicsOpen: 1 });
     actions.saveConfig(draft);
     toast('설정이 저장되었습니다!');
   };
@@ -348,9 +500,9 @@ export default function Parent({ onHome }: { onHome: () => void }) {
   const wallet = useWallet();
   const coupons = [...aceCoupons().filter(c => couponState(c) === 'active'), ...mathWishCoupons()];
   const today = dayIndex();
-  const reviewCards = Object.entries(store.cards).filter(([id, c]) => c.box < 5 && /^n/.test(id));
+  const reviewCards = Object.entries(store.cards).filter(([id, c]) => c.box < 5 && /^(n\d+k?|ord):/.test(id));
   const dueNow = reviewCards.filter(([, c]) => c.due <= today).length;
-  const weak = Object.entries(store.cards).filter(([id, v]) => v.wrong > 0 && /^n/.test(id)).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
+  const weak = Object.entries(store.cards).filter(([id, v]) => v.wrong > 0 && /^(n\d+k?|ord):/.test(id)).sort((a, b) => b[1].wrong - a[1].wrong).slice(0, 12);
 
   const exportBackup = () => {
     const data: Record<string, string> = {};
@@ -410,6 +562,8 @@ export default function Parent({ onHome }: { onHome: () => void }) {
         {/* ══════════ 학습 설정 ══════════ */}
         {tab === 'settings' && (
           <div className="space-y-6 animate-slide-up">
+            <ScopeCard draft={draft} setDraft={setDraft} />
+            <MixCard draft={draft} setDraft={setDraft} />
             <Card>
               <Title icon={<Settings size={18} className="text-trust-600" />}>문제 설정</Title>
               <div className="space-y-3">
@@ -439,60 +593,14 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                 <Stepper value={draft.newPerRound} min={0} max={10} unit="개" onChange={n => setDraft({ ...draft, newPerRound: n })} />
                 <p className="text-[11px] text-slate-400 leading-relaxed">오늘의 한 마디, 주제 여행, 소리 탐정에서 새 표현·단어·글자 소리를 몇 개씩 낼지 정합니다. 숫자 영어는 판마다 새 숫자를 만들고, 틀린 숫자를 다시 냅니다.</p>
               </div>
-              <div className="space-y-3">
-                <Label>숫자 영어에 섞을 문제 유형</Label>
-                <div className="grid gap-2">
-                  {([['listen', '듣고 고르기', '영어 소리를 듣고 숫자 고르기'], ['say', '소리 고르기', '숫자를 보고 맞게 읽은 소리 고르기 (보기를 눌러 들어 봄)'],
-                    ['place', '붙는 말 고르기', '색칠한 자리 뒤에 thousand · hundred가 붙는지 고르기 (100 이상에서만)']] as const).map(([k, label, desc]) => (
-                    <button key={k} onClick={() => setDraft({ ...draft, modes: { ...draft.modes, [k]: !draft.modes[k] } })}
-                      className={`text-left px-4 py-3 rounded-xl border-2 flex items-center justify-between gap-3 ${draft.modes[k] ? 'border-trust-200 bg-trust-50' : 'border-slate-100 bg-white'}`}>
-                      <span>
-                        <span className={`text-sm font-bold ${draft.modes[k] ? 'text-trust-700' : 'text-slate-400'}`}>{label}</span>
-                        <span className="block text-[11px] text-slate-400">{desc}</span>
-                      </span>
-                      <span className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${draft.modes[k] ? 'bg-trust-600' : 'bg-slate-200'}`}>
-                        <span className={`block w-5 h-5 bg-white rounded-full transition-transform ${draft.modes[k] ? 'translate-x-5' : ''}`} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <Title icon={<Hash size={18} className="text-trust-600" />}>숫자 영어 단계</Title>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                처음에는 1~100 확인 문제 10개를 풀고, 다 맞히면 100 ~ 999와 1,000 ~ 9,999가 열립니다.
-                1만 이상은 "쉼표에서 끊어 읽기" 개념 정리를 보면 열리게 할 예정입니다 (2차).
-              </p>
-              <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-sm font-bold text-slate-700">{store.progress.numCheck ? '✅ 큰 숫자가 열려 있어요' : '🔒 1~100 확인 전이에요'}</span>
-                <button className="btn-secondary px-4 py-2 text-sm" onClick={() => {
-                  actions.setProgress({ numCheck: !store.progress.numCheck });
-                  toast(store.progress.numCheck ? '다시 잠갔어요' : '확인 없이 큰 숫자를 열었어요');
-                }}>{store.progress.numCheck ? '다시 잠그기' : '확인 없이 열기'}</button>
-              </div>
             </Card>
 
             <PhraseCard />
-
             <SongCard draft={draft} setDraft={setDraft} />
-            <PhonicsCard />
 
-            <Card>
-              <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                모든 단계가 열린 아이 화면으로 들어갑니다. 체험 중에 푼 문제는 별·기록·복습에 남지 않고, 힌트도 별을 쓰지 않습니다.
-                화면 위의 「체험 끝내기」를 누르거나 30분이 지나면 아이 모드로 돌아갑니다.
-              </p>
-              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => { if (!confirmLeave()) return; actions.setPreview(true); onHome(); }}>
-                <Eye size={18} />체험 시작
-              </button>
-            </Card>
-
+            <div className="flex items-center gap-2 pt-2"><div className="h-px bg-slate-200 flex-1" /><div className="text-[11px] font-black text-slate-400 whitespace-nowrap">소리 · 녹음</div><div className="h-px bg-slate-200 flex-1" /></div>
             <VoiceCard draft={draft} setDraft={setDraft} />
             <VoiceAlbum draft={draft} setDraft={setDraft} />
-
             <Card>
               <Title icon={<Lightbulb size={18} className="text-amber-500" />}>힌트</Title>
               <div className="space-y-2 text-sm text-slate-500 leading-relaxed">
@@ -502,8 +610,9 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               </div>
             </Card>
 
+            <div className="flex items-center gap-2 pt-2"><div className="h-px bg-slate-200 flex-1" /><div className="text-[11px] font-black text-slate-400 whitespace-nowrap">아이 정보 · 체험</div><div className="h-px bg-slate-200 flex-1" /></div>
             <Card>
-              <Title icon={<Star size={18} className="text-amber-400" />}>아이 이름</Title>
+              <Title icon={<Star size={18} className="text-amber-400" />}>아이 정보</Title>
               <input type="text" className="input-field bg-slate-50" placeholder="예: 지민" maxLength={10}
                 value={draft.childName || ''} onChange={e => setDraft({ ...draft, childName: e.target.value })} />
               <p className="text-[11px] text-slate-400">인사와 칭찬에서 아이 이름을 불러 줘요. (선택)</p>
@@ -521,7 +630,16 @@ export default function Parent({ onHome }: { onHome: () => void }) {
               <p className="text-[11px] text-slate-400">오늘의 한 마디의 "What's your name?", "How old are you?" 대답에 씁니다. 한글 이름은 영어 목소리가 읽지 못해서 영어로 따로 받습니다. 비워 두면 그 문제는 나오지 않아요.</p>
               {draft.childNameEn && <button className="btn-secondary px-4 py-2 text-sm flex items-center gap-1.5" onClick={() => speak(`My name is ${draft.childNameEn}.`)}><Volume2 size={14} />My name is {draft.childNameEn}.</button>}
             </Card>
-
+            <Card>
+              <Title icon={<Eye size={18} className="text-trust-600" />}>아이 화면 체험하기</Title>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                모든 단계가 열린 아이 화면으로 들어갑니다. 체험 중에 푼 문제는 별·기록·복습에 남지 않고, 힌트도 별을 쓰지 않습니다.
+                화면 위의 「체험 끝내기」를 누르거나 30분이 지나면 아이 모드로 돌아갑니다.
+              </p>
+              <button className="btn-secondary w-full flex items-center justify-center gap-2" onClick={() => { if (!confirmLeave()) return; actions.setPreview(true); onHome(); }}>
+                <Eye size={18} />체험 시작
+              </button>
+            </Card>
 
             <div className="pt-10 border-t-2 border-dashed border-slate-200 space-y-6">
               <div className="flex items-center justify-center gap-2">
@@ -649,8 +767,8 @@ export default function Parent({ onHome }: { onHome: () => void }) {
                   {weak.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {weak.map(([id, v]) => (
-                        <button key={id} onClick={() => speak(numWords(Number(id.split(':')[1])))} className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 text-left">
-                          <span className="en text-xl text-slate-800">{fmt(Number(id.split(':')[1]))}</span>
+                        <button key={id} onClick={() => speak(idWords(id))} className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 text-left">
+                          <span className="en text-xl text-slate-800">{idLabel(id)}</span>
                           <span className="block text-[10px] font-bold text-rose-500">{v.wrong}번 틀림</span>
                         </button>
                       ))}

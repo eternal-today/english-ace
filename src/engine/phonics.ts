@@ -3,14 +3,32 @@
  * pfirst 단어를 듣고 어떤 글자로 시작하는지 고르기 (P1)
  * pmatch 글자를 보고 그 소리로 시작하는 그림 고르기 (P2, 그림을 누르면 단어 소리)
  * pcase  큰 글자를 보고 짝이 되는 작은 글자 고르기
+ * pread  단어(cat)를 읽고 맞는 그림 고르기 (P4 단어 읽기. 그 단어의 글자를 모두 만나면 나옴)
  */
 import { Card, Config } from '../types';
-import { GROUPS, LETTERS, LETTER_BY_ID, LOOKALIKE, Letter, PhWord, SAME_SOUND, letterSay } from '../data/phonics';
+import { GROUPS, LETTERS, LETTER_BY_ID, LOOKALIKE, Letter, PhWord, READ_BY_WORD, READ_WORDS, SAME_SOUND, letterSay } from '../data/phonics';
 import { POption, PQuestion, PType } from './phrases';
 import { dayIndex } from './srs';
 import { shuffle } from './numbers';
 
 export const letterCard = (id: string) => 'l:' + id;
+/** 단어 읽기 항목 번호: 'rd:cat' (기억 상자 카드 번호와 같음) */
+export const readId = (word: string) => 'rd:' + word;
+export const isReadId = (id: string) => id.startsWith('rd:');
+/** 소리 탐정 항목(글자 a 또는 단어 rd:cat)의 기억 상자 카드 번호 */
+export const phonicsCard = (id: string) => (isReadId(id) ? id : letterCard(id));
+
+/** 읽을 수 있는 단어: 글자를 모두 만난 단어 (열린 묶음 안에서) */
+export function readableWords(cards: Record<string, Card>, open: number): string[] {
+  const taught = new Set(poolLetters(open));
+  return READ_WORDS.filter(w => [...w.word].every(ch => taught.has(ch) && cards[letterCard(ch)])).map(w => readId(w.word));
+}
+export function readProgress(cards: Record<string, Card>, open: number) {
+  const ids = readableWords(cards, open);
+  return { total: READ_WORDS.length, readable: ids.length, met: ids.filter(id => cards[id]).length, learned: ids.filter(id => (cards[id]?.box || 0) >= LEARNED_BOX).length };
+}
+/** 두 단어가 같은 자리에 같은 글자가 몇 개인지 (cat·hat → 2) */
+const sameSpots = (a: string, b: string) => [...a].filter((ch, i) => b[i] === ch).length;
 const pick = <T,>(l: T[]) => l[Math.floor(Math.random() * l.length)];
 const LEARNED_BOX = 3;
 
@@ -55,8 +73,29 @@ const letterOpt = (l: Letter, correct: boolean): POption => ({
 });
 
 export const typesForLetter = (): PType[] => ['pfirst', 'pmatch', 'pcase'];
+export const typesForPhonics = (id: string): PType[] => (isReadId(id) ? ['pread'] : typesForLetter());
 
-export function makePhonicsQuestion(id: string, type: PType, difficulty: number, pool: string[]): PQuestion | null {
+/** 단어 읽기: 글자로 된 단어를 보고 그림 고르기. 보통·어려움은 글자가 비슷한 단어(cat·hat·bat)를 보기로 */
+function makeReadQuestion(id: string, difficulty: number, readable: string[]): PQuestion | null {
+  const w = READ_BY_WORD[id.slice(3)];
+  if (!w) return null;
+  const n = difficulty === 1 ? 2 : 3;
+  const others = READ_WORDS.filter(x => x.word !== w.word && x.emoji !== w.emoji);
+  const known = new Set(readable.map(r => r.slice(3)));
+  const ranked = shuffle(others).sort((a, b) =>
+    (difficulty === 1 ? 0 : sameSpots(w.word, b.word) - sameSpots(w.word, a.word)) || Number(known.has(b.word)) - Number(known.has(a.word)));
+  const picks: typeof others = [];
+  for (const x of ranked) { if (picks.length >= n) break; if (!picks.some(p => p.emoji === x.emoji)) picks.push(x); }
+  const opt = (x: typeof w, correct: boolean): POption => ({ key: correct ? 'ok' : 'w' + x.word, text: x.word, correct, emoji: x.emoji, sub: x.ko, after: x.word });
+  return {
+    itemId: w.word, cardId: id, menu: 'phonics', type: 'pread', letter: w.word,
+    options: shuffle([opt(w, true), ...picks.map(x => opt(x, false))]), answer: 'ok', hideText: true,
+    fb: { word: w.word, emoji: w.emoji, ko: w.ko, letter: w.word[0] },
+  };
+}
+
+export function makePhonicsQuestion(id: string, type: PType, difficulty: number, pool: string[], readable: string[] = []): PQuestion | null {
+  if (isReadId(id)) return type === 'pread' ? makeReadQuestion(id, difficulty, readable) : null;
   const l = LETTER_BY_ID[id];
   if (!l) return null;
   const n = difficulty === 1 ? 2 : 3;
@@ -86,11 +125,16 @@ export function makePhonicsQuestion(id: string, type: PType, difficulty: number,
 /** 한 판: 복습 차례 글자 + 새 글자(두 번씩) + 이미 만난 글자로 채움. 같은 글자가 다시 나오면 다른 종류로 */
 export function planPhonicsRound(config: Config, cards: Record<string, Card>, open: number): { questions: PQuestion[]; newIds: string[] } {
   const today = dayIndex();
-  const ids = poolLetters(open);
-  const seen = ids.filter(id => cards[letterCard(id)]);
-  const unseen = ids.filter(id => !cards[letterCard(id)]);
+  const letterIds = poolLetters(open);
+  const readable = readableWords(cards, open);
+  const ids = [...letterIds, ...readable];
+  const card = (id: string) => cards[phonicsCard(id)];
+  const seen = ids.filter(id => card(id));
+  const unseen = letterIds.filter(id => !card(id));
+  // 처음 읽는 단어는 소개 카드 없이 한 판에 둘까지 (글자를 이미 알아서)
+  const newWords = shuffle(readable.filter(id => !card(id))).slice(0, 2);
   const newIds = unseen.slice(0, Math.max(0, config.newPerRound));
-  const due = shuffle(seen.filter(id => cards[letterCard(id)].due <= today && cards[letterCard(id)].box < 5));
+  const due = shuffle(seen.filter(id => card(id).due <= today && card(id).box < 5));
   const rest = shuffle(seen.filter(id => !due.includes(id)));
   const count = config.count;
   const picks: string[] = [];
@@ -98,8 +142,9 @@ export function planPhonicsRound(config: Config, cards: Record<string, Card>, op
   const add = (id: string) => { picks.push(id); times[id] = (times[id] || 0) + 1; };
   newIds.forEach(id => { add(id); add(id); });
   due.forEach(id => { if (picks.length < count) add(id); });
+  newWords.forEach(id => { if (picks.length < count) add(id); });
   rest.forEach(id => { if (picks.length < count) add(id); });
-  const all = [...newIds, ...due, ...rest];
+  const all = [...newIds, ...due, ...newWords, ...rest];
   const maxTimes = Math.max(3, Math.ceil(count / Math.max(1, all.length)));
   let guard = 0;
   while (picks.length < count && all.length && guard++ < 500) {
@@ -110,7 +155,7 @@ export function planPhonicsRound(config: Config, cards: Record<string, Card>, op
   let order = shuffle(chosen);
   for (let k = 0; k < 20 && order.some((p, i) => i > 0 && order[i - 1] === p); k++) order = shuffle(chosen);
   // 아직 만나지 않은 글자는 보기로도 쓰지 않음 (처음 판에 모르는 글자가 보기로 나오지 않게) — 단, 보기 수가 모자라면 씀
-  const metPool = [...new Set([...seen, ...newIds])];
+  const metPool = [...new Set([...seen.filter(id => !isReadId(id)), ...newIds])];
   const used: Record<string, PType[]> = {};
   const met = new Set<string>();
   const dueSet = new Set(due);
@@ -118,12 +163,12 @@ export function planPhonicsRound(config: Config, cards: Record<string, Card>, op
   for (const id of order) {
     const first = newIds.includes(id) && !met.has(id);
     met.add(id);
-    const avail = typesForLetter();
+    const avail = typesForPhonics(id);
     const u = used[id] || [];
     const fresh = avail.filter(t => !u.includes(t));
     const tryOrder: PType[] = first ? ['pfirst', ...avail] : [...shuffle(fresh.length ? fresh : avail), ...avail];
     let q: PQuestion | null = null;
-    for (const t of tryOrder) { q = makePhonicsQuestion(id, t, config.difficulty, metPool.length >= 4 ? metPool : ids); if (q) break; }
+    for (const t of tryOrder) { q = makePhonicsQuestion(id, t, config.difficulty, metPool.length >= 4 ? metPool : letterIds, readable); if (q) break; }
     if (!q) continue;
     used[id] = [...u, q.type];
     questions.push({ ...q, isNew: first, isReview: dueSet.has(id) });

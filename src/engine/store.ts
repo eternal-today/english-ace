@@ -13,6 +13,7 @@ import { PhraseItem } from '../data/phrases';
 import { forgetEnglishRecords, markDirty, notifyWallet, spendHint, takeCelebration } from '../ace/wallet';
 import { onPrefsApplied, prefsChanged } from '../ace/prefs';
 import { setVoiceURI } from './speech';
+import { INTERVALS, dayIndex } from './srs';
 
 const P = 'english_';
 const K = { config: P + 'config', cards: P + 'cards', records: P + 'records', progress: P + 'progress', pin: P + 'parent_pin', custom: P + 'custom_phrases', heard: P + 'heard' };
@@ -43,6 +44,8 @@ function defaultConfig(): Config {
     count: 10, difficulty: 1, newPerRound: 3,
     modes: { listen: true, say: true, place: true },
     childName: name, childNameEn: '', childAge: 0, voiceURI: '', songs: {}, speakPerDay: 2,
+    openPhrases: 0, openSongs: 0, openTopics: 0, openPhonics: 0,
+    mix: { numbers: true, phrases: true, songs: true, phonics: true },
   };
 }
 
@@ -67,7 +70,7 @@ function readPreview(): boolean {
 function load(): State {
   const def = defaultConfig();
   const saved = read<Partial<Config>>(K.config, {});
-  const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) }, songs: { ...(saved.songs || {}) } };
+  const config: Config = { ...def, ...saved, modes: { ...def.modes, ...(saved.modes || {}) }, mix: { ...def.mix, ...(saved.mix || {}) }, songs: { ...(saved.songs || {}) } };
   config.count = Math.min(MAX_COUNT, Math.max(MIN_COUNT, config.count || 10));
   setVoiceURI(config.voiceURI);
   const progress = read<Partial<Progress>>(K.progress, {});
@@ -139,6 +142,18 @@ export const actions = {
     commit({ preview: on });
   },
   setCards(cards: Record<string, Card>) { commit({ cards }); },
+  /** 부모가 "이미 알아요"로 표시 → 4번 칸에서 시작, 일주일 뒤 복습으로 한 번 나옴 (한자 에이스와 같은 방식) */
+  markKnown(ids: string[]) {
+    const today = dayIndex();
+    const cards = { ...state.cards };
+    let n = 0;
+    for (const id of ids) {
+      const cur = cards[id];
+      if (!cur || cur.box < 4) { cards[id] = { box: 4, due: today + INTERVALS[4], seen: cur?.seen || 0, wrong: cur?.wrong || 0, last: Date.now() }; n++; }
+    }
+    commit({ cards });
+    return n;
+  },
   setProgress(p: Partial<Progress>) { commit({ progress: { ...state.progress, ...p } }); },
   addCustom(item: PhraseItem) { commit({ custom: [...state.custom, item] }); },
   removeCustom(id: string) {

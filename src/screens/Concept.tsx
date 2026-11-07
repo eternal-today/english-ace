@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Scissors, Volume2, XCircle } from 'lucide-react';
 import { ConceptNote } from '../engine/concepts';
 import { Question } from '../types';
-import { fmt } from '../engine/numbers';
+import { labelOf } from '../engine/numbers';
 import { actions } from '../engine/store';
 import { NumberView, sayNumber, sayNumberSlow } from '../components/NumberView';
 import { tap } from '../components/ui';
@@ -14,6 +14,9 @@ import { tap } from '../components/ui';
  */
 export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; onBack: () => void; onPlay: () => void }) {
   const [active, setActive] = useState(-1);
+  const ord = !!note.ord;
+  const say = (n: number) => sayNumber(n, undefined, ord);
+  const lab = (n: number) => labelOf(n, ord);
   const [qs] = useState<Question[]>(() => note.check());
   const [answers, setAnswers] = useState<(string | null)[]>(() => qs.map(() => null));
   const done = answers.every(a => a !== null);
@@ -22,7 +25,7 @@ export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; o
   const pick = (i: number, key: string) => {
     if (answers[i] !== null) return;
     const next = answers.slice(); next[i] = key; setAnswers(next);
-    sayNumber(qs[i].value);
+    say(qs[i].value);
     if (next.every(a => a !== null)) actions.markConcept(note.id);
   };
 
@@ -48,21 +51,21 @@ export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; o
           <p className="font-bold text-slate-600 leading-relaxed break-keep">{note.core}</p>
           <div className="flex flex-wrap gap-2">
             {note.coreExamples.map(n => (
-              <button key={n} onClick={() => sayNumber(n)} className="bg-brand-50 text-brand-700 rounded-2xl px-4 py-2 flex items-center gap-2 active:scale-95">
-                <Volume2 size={16} /><span className="en text-2xl">{fmt(n)}</span>
+              <button key={n} onClick={() => say(n)} className="bg-brand-50 text-brand-700 rounded-2xl px-4 py-2 flex items-center gap-2 active:scale-95">
+                <Volume2 size={16} /><span className="en text-2xl">{lab(n)}</span>
               </button>
             ))}
           </div>
         </Section>
 
         <Section no="2" title="이렇게 해요">
-          <NumberView value={note.howExample} colored labels active={active} words className="text-6xl py-2" />
+          <NumberView value={note.howExample} ord={ord} colored labels active={active} words className="text-6xl py-2" />
           <ul className="space-y-1.5">
             {note.how.map((line, i) => <li key={i} className="en text-lg text-slate-700 bg-slate-50 rounded-xl px-3 py-2">{line}</li>)}
           </ul>
           <div className="flex gap-2">
-            <button onClick={() => sayNumberSlow(note.howExample, setActive)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Scissors size={18} />끊어서 듣기</button>
-            <button onClick={() => sayNumber(note.howExample)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Volume2 size={18} />이어서 듣기</button>
+            {!ord && <button onClick={() => sayNumberSlow(note.howExample, setActive)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Scissors size={18} />끊어서 듣기</button>}
+            <button onClick={() => say(note.howExample)} className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"><Volume2 size={18} />이어서 듣기</button>
           </div>
         </Section>
 
@@ -77,7 +80,7 @@ export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; o
               {c.play && (
                 <div className="flex gap-2">
                   {c.play.map(n => (
-                    <button key={n} onClick={() => sayNumber(n)} className="bg-slate-50 rounded-xl px-3 py-1.5 text-sm font-black text-slate-600 flex items-center gap-1.5 active:scale-95"><Volume2 size={14} />{fmt(n)}</button>
+                    <button key={n} onClick={() => say(n)} className="bg-slate-50 rounded-xl px-3 py-1.5 text-sm font-black text-slate-600 flex items-center gap-1.5 active:scale-95"><Volume2 size={14} />{lab(n)}</button>
                   ))}
                 </div>
               )}
@@ -90,7 +93,7 @@ export default function Concept({ note, onBack, onPlay }: { note: ConceptNote; o
             const a = answers[i];
             return (
               <div key={i} className="space-y-2">
-                <button onClick={() => sayNumber(q.value)} className="flex items-center gap-2 text-sm font-black text-brand-700 bg-brand-50 rounded-xl px-3 py-2 active:scale-95">
+                <button onClick={() => say(q.value)} className="flex items-center gap-2 text-sm font-black text-brand-700 bg-brand-50 rounded-xl px-3 py-2 active:scale-95">
                   <Volume2 size={16} />{i + 1}번 듣기
                 </button>
                 <div className={`grid gap-2 ${q.options.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>

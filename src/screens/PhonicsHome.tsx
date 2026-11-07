@@ -3,11 +3,13 @@ import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronRight, Ear, Lock, Search, Volume2, XCircle } from 'lucide-react';
 import { actions, useStore } from '../engine/store';
 import { GROUPS, GROUP_CAREFUL, LETTER_BY_ID, letterSay } from '../data/phonics';
-import { conceptCheck, groupProgress, letterCard, openGroups, poolLetters } from '../engine/phonics';
+import { conceptCheck, groupProgress, letterCard, openGroups, poolLetters, readProgress, readableWords } from '../engine/phonics';
+import { READ_BY_WORD } from '../data/phonics';
 import { PQuestion } from '../engine/phrases';
 import { dayIndex, toneOf } from '../engine/srs';
 import { speak } from '../engine/speech';
 import { tap } from '../components/ui';
+import { phonicsGroupsOf } from '../engine/scope';
 
 export const phConceptId = (no: number) => 'ph-g' + no;
 
@@ -19,8 +21,9 @@ const BackBtn = ({ onClick }: { onClick: () => void }) => (
 export function PhonicsHome({ onBack, onStart, onConcept, onDogam }: {
   onBack: () => void; onStart: () => void; onConcept: (no: number) => void; onDogam: () => void;
 }) {
-  const { config, cards, progress, preview } = useStore();
-  const open = preview ? GROUPS.length : openGroups(cards, progress.phonicsOpen);
+  const store = useStore();
+  const { config, cards, progress, preview } = store;
+  const open = phonicsGroupsOf(store);
   const pool = poolLetters(open);
   const today = dayIndex();
   const due = pool.filter(l => cards[letterCard(l)] && cards[letterCard(l)].due <= today && cards[letterCard(l)].box < 5).length;
@@ -81,6 +84,22 @@ export function PhonicsHome({ onBack, onStart, onConcept, onDogam }: {
             );
           })}
         </div>
+
+        {(() => {
+          const rp = readProgress(cards, open);
+          return (
+            <div className={`bg-white rounded-[2rem] border-2 p-5 space-y-2 ${rp.readable ? 'border-slate-100 shadow-sm' : 'border-dashed border-slate-200 opacity-70'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-black text-slate-800">📖 단어 읽기</div>
+                <span className="text-xs font-black text-brand-600">{rp.readable ? `읽은 단어 ${rp.met} / ${rp.readable}` : '글자를 만나면 열려요'}</span>
+              </div>
+              <p className="text-xs font-bold text-slate-400 break-keep">
+                {rp.readable ? <>만난 글자로 된 단어(<span className="en">{readableWords(cards, open).slice(0, 4).map(id => id.slice(3)).join(', ')}</span>…)를 글자 소리로 이어 읽고 그림을 골라요. 한 판에 섞여 나와요.</>
+                  : <>글자 소리를 만나면 그 글자로 된 단어(<span className="en">pan, cat, dog</span>…)를 읽는 문제가 한 판에 섞여 나와요.</>}
+              </p>
+            </div>
+          );
+        })()}
 
         <button onClick={onDogam} className="w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 flex items-center justify-between active:scale-[0.98]">
           <span className="font-black text-slate-800 flex items-center gap-2"><BookOpen size={18} className="text-brand-500" />소리 도감</span>
@@ -254,6 +273,22 @@ export function SoundDogam({ onBack }: { onBack: () => void }) {
             </div>
           </section>
         ))}
+        {(() => {
+          const metWords = Object.keys(cards).filter(k => k.startsWith('rd:')).map(k => READ_BY_WORD[k.slice(3)]).filter(Boolean);
+          if (!metWords.length) return null;
+          return (
+            <section className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 space-y-2">
+              <h3 className="text-xs font-black text-slate-400 px-1">📖 읽은 단어 {metWords.length}개</h3>
+              <div className="flex flex-wrap gap-2">
+                {metWords.map(w => (
+                  <button key={w.word} onClick={() => speak(w.word)} className="bg-brand-50 rounded-xl px-3 py-1.5 flex items-center gap-1.5">
+                    <span className="text-xl leading-none">{w.emoji}</span><span className="en text-lg text-brand-800">{w.word}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
         <p className="text-[11px] font-bold text-slate-400 leading-relaxed">회색은 익히는 중, 색이 칠해지면 익힌 소리, 금테는 완전히 익힌 소리예요. 한 묶음을 모두 익히면 도장을 받아요.</p>
       </div>
     </div>

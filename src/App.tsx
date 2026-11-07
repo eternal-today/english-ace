@@ -138,7 +138,7 @@ export default function App() {
             {view === 'songUnit' && <SongUnitView unitId={unitId} onBack={() => { stopSpeak(); setView('songs'); }} onStart={startSongs} />}
             {view === 'songPlay' && (
               <PhrasePlay key={roundKey} unitId={unitId} resume={resume} backRef={playBackRef}
-                onExit={() => setView('songUnit')} onAgain={startSongs} onSong={() => setSongOpen(true)}
+                onExit={() => setView('songUnit')} onAgain={startSongs} onSong={SONG_BY_ID[unitId]?.topic ? undefined : () => setSongOpen(true)}
                 onMilestone={m => { setMilestone(m); fireConfetti(m.hall ? 'epic' : m.value % 50 === 0 ? 'big' : 'normal'); }}
                 onOpenShop={() => setRewardsOpen(true)} />
             )}

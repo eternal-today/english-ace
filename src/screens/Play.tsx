@@ -5,7 +5,7 @@ import { NumStage, Question, RoundItem, RoundKind, RoundRecord } from '../types'
 import { Milestone, actions, getState, useStore } from '../engine/store';
 import { HINT_COST, useWallet } from '../ace/wallet';
 import { paidRound } from '../ace/playground';
-import { STAGE_BY_ID, answerText, numWords, planRound, questionText, shownAnswer, shuffle } from '../engine/numbers';
+import { STAGE_BY_ID, answerText, idWords, numWords, planRound, questionText, shownAnswer, shuffle, wordsOf } from '../engine/numbers';
 import { applyAnswer } from '../engine/srs';
 import { speak, stopSpeak } from '../engine/speech';
 import { NumberView, sayNumber, sayNumberSlow } from '../components/NumberView';
@@ -82,7 +82,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   useEffect(() => {
     setActive(-1);
     if ((phase === 'solving' || phase === 'retry') && q?.type === 'listen') {
-      const t = setTimeout(() => sayNumber(q.value), 350);
+      const t = setTimeout(() => sayNumber(q.value, undefined, q.ord), 350);
       return () => clearTimeout(t);
     }
   }, [phase, idx, rIdx]);
@@ -166,7 +166,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     setOkNow(ok);
     setPicked(value);
     // 틀렸으면 정답 소리를 덩어리로 한 번 더, 맞혔으면 보통 속도로 한 번
-    if (!ok) timerRef.current = setTimeout(() => sayNumberSlow(q.value, setActive), 300);
+    if (!ok) timerRef.current = setTimeout(() => sayNumberSlow(q.value, setActive, q.ord), 300);
     if (inRetry) {   // 다시 풀기: 연습만. 별·기록·기억 상자는 그대로
       if (ok) advanceAfterSound(items);
       return;
@@ -189,7 +189,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
   /** 맞혔을 때: 정답 숫자를 한 번 읽어 줌. 다음 문제로는 「다음」을 눌러야 넘어감 (오늘의 한 마디와 같게) */
   const advanceAfterSound = (list: RoundItem[]) => {
     nextRef.current = () => goNext(list);
-    sayNumber(q.value);
+    sayNumber(q.value, undefined, q.ord);
   };
   /** 보기 지우기 힌트: 무료 없음, 1회 별 1개 (공통 장부) */
   const pressHint = () => {
@@ -218,7 +218,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
     if (answered || removed.includes(key)) return;
     selAt.current = Date.now();
     setSel(key);
-    if (q.type === 'say') speak(numWords(Number(key)));   // 소리 고르기: 누르면 그 소리를 들려줌
+    if (q.type === 'say') speak(wordsOf(Number(key), q.ord));   // 소리 고르기: 누르면 그 소리를 들려줌
   };
   const submitChoice = () => {
     if (!sel || removed.includes(sel) || Date.now() - selAt.current < GUARD_MS) return;
@@ -294,7 +294,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
               <div className="grid gap-2 max-h-72 overflow-y-auto pr-1">
                 {record.items.map((it, i) => (
                   <div key={i} className={`p-3 rounded-xl border flex justify-between items-center gap-3 ${it.ok ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
-                    <button className="min-w-0 text-left" onClick={() => speak(numWords(Number(it.id.split(':')[1])))}>
+                    <button className="min-w-0 text-left" onClick={() => speak(idWords(it.id))}>
                       <div className="text-sm font-black text-slate-700 truncate flex items-center gap-1"><Volume2 size={14} className="text-slate-400 shrink-0" />{it.ans}</div>
                       <div className="text-[11px] font-bold text-slate-400 truncate">{it.q}{it.hint ? ' · 힌트 봄' : ''}</div>
                     </button>
@@ -370,12 +370,12 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
 
                 {q.type === 'listen' && !answered && (
                   <div className="flex items-end gap-4">
-                    <button onClick={() => sayNumber(q.value)} aria-label="다시 듣기"
+                    <button onClick={() => sayNumber(q.value, undefined, q.ord)} aria-label="다시 듣기"
                       className="w-32 h-32 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex flex-col items-center justify-center gap-1 shadow-xl shadow-brand-200 active:scale-95 transition-transform">
                       <Volume2 size={48} />
                       <span className="text-xs font-black">다시 듣기</span>
                     </button>
-                    <button onClick={() => sayNumberSlow(q.value)} aria-label="끊어 듣기"
+                    <button onClick={() => sayNumberSlow(q.value, undefined, q.ord)} aria-label="끊어 듣기"
                       className="w-20 h-20 rounded-full bg-white border-2 border-brand-200 text-brand-600 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform">
                       <Scissors size={24} />
                       <span className="text-[10px] font-black">끊어 듣기</span>
@@ -384,7 +384,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                 )}
 
                 {(q.type === 'say' || q.type === 'place' || answered) && (
-                  <NumberView value={q.value} hi={q.type === 'place' && !answered ? q.hi : undefined}
+                  <NumberView value={q.value} ord={q.ord} hi={q.type === 'place' && !answered ? q.hi : undefined}
                     colored={answered} labels={answered && q.type === 'place'} active={active} words={answered}
                     className="text-[clamp(3.5rem,16vmin,7rem)]" />
                 )}
@@ -393,7 +393,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                     className={`px-5 py-3 rounded-2xl font-black ${lastOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                     <div className="text-sm">{lastOk ? (inRetry ? '이번엔 맞혔어! 👍' : combo >= 5 ? `${combo}연속 정답! 불타오른다! 🔥` : combo >= 3 ? `${combo}연속! 대단해! ⚡` : '정답이야! 🌟') : '아까비! 덩어리로 끊어서 다시 들어 볼까? 💪'}</div>
-                    <button onClick={() => sayNumberSlow(q.value, setActive)} className="mt-2 inline-flex items-center gap-1.5 text-xs font-black bg-white/80 text-slate-600 px-3 py-1.5 rounded-xl">
+                    <button onClick={() => sayNumberSlow(q.value, setActive, q.ord)} className="mt-2 inline-flex items-center gap-1.5 text-xs font-black bg-white/80 text-slate-600 px-3 py-1.5 rounded-xl">
                       <Scissors size={14} />끊어서 다시 듣기
                     </button>
                   </motion.div>
@@ -421,7 +421,7 @@ export default function Play({ stage, kind, onExit, onAgain, onMilestone, onOpen
                   className={`relative rounded-3xl border-2 transition-colors select-none flex flex-col items-center justify-center px-2 ${q.type === 'place' ? 'py-4' : 'py-5 landscape:py-7'} ${tone}`}>
                   {q.type === 'say' ? (
                     answered
-                      ? <><span className="en text-[clamp(1.5rem,6vmin,2.25rem)]">{o.label}</span><span className="en text-xs font-medium text-slate-500 break-words">{numWords(Number(o.key))}</span></>
+                      ? <><span className="en text-[clamp(1.5rem,6vmin,2.25rem)]">{o.label}</span><span className="en text-xs font-medium text-slate-500 break-words">{wordsOf(Number(o.key), q.ord)}</span></>
                       : <span className="flex items-center gap-2 text-[clamp(1.25rem,5vmin,1.75rem)] font-black"><Volume2 size={24} />{CIRCLE[i]}</span>
                   ) : q.type === 'place'
                     ? <span className={o.key === 'none' ? 'text-lg font-black' : 'en text-[clamp(1.5rem,6vmin,2.25rem)]'}>{o.label}</span>
